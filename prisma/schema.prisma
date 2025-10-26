@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  clerkId    String   @unique
+  username   String   @unique
+  avatarKey  String   @unique
+  score      Int      @default(0)
+  createdAt  DateTime @default(now())
+  presses    Press[]
+  roomMemberships RoomMembership[]
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique // Room code for users to join
+  status      RoomStatus @default(WAITING) // WAITING | ACTIVE | ENDED
+  createdAt   DateTime @default(now())
+  competitions Competition[]
+  memberships RoomMembership[]
+}
+
+model RoomMembership {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  joinedAt  DateTime @default(now())
+  
+  room      Room     @relation(fields: [roomId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  
+  @@unique([roomId, userId])
+}
+
+model Competition {
+  id         String   @id @default(cuid())
+  roomId     String
+  name       String
+  status     CompetitionStatus @default(DRAFT)
+  createdAt  DateTime @default(now())
+  rounds     Round[]
+  room       Room     @relation(fields: [roomId], references: [id])
+}
+
+enum RoomStatus {
+  WAITING
+  ACTIVE
+  ENDED
+}
+
+model Round {
+  id             String   @id @default(cuid())
+  competitionId  String
+  competition    Competition @relation(fields: [competitionId], references: [id])
+  startedAt      DateTime?
+  endedAt        DateTime?
+  buttonsEnabled Boolean   @default(false)
+  winnerUserId   String?
+  hasTimer       Boolean  @default(false)
+  timerDuration  Int?     // Duration in seconds
+  timerEndsAt    DateTime? // When the timer will end
+  presses        Press[]
+}
+
+model Press {
+  id        String   @id @default(cuid())
+  roundId   String
+  userId    String
+  pressedAt DateTime @default(now())
+  timerExpiresAt DateTime? // When this press's timer expires
+
+  round     Round    @relation(fields: [roundId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([roundId, userId])
+}
+
+enum CompetitionStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+}
+
+model Question {
+  id             String   @id @default(cuid())
+  competitionId  String
+  roundId        String?
+  text           String
+  correctAnswer  String
+  points         Int      @default(1)
+}
+
+model Answer {
+  id        String   @id @default(cuid())
+  questionId String
+  userId     String
+  text       String
+  normalized String
+  isCorrect  Boolean  @default(false)
+  points     Int      @default(0)
+  reviewed   Boolean  @default(false)
+
+  createdAt  DateTime @default(now())
+}
