@@ -63,6 +63,15 @@ export function broadcast(event: string, data: any) {
   }
 }
 
+// Broadcast to specific room - the external WS server should handle room filtering
+export function broadcastToRoom(
+  roomId: string,
+  message: { type: string; data: any }
+) {
+  console.log(`WebSocket: Broadcasting ${message.type} to room ${roomId}`);
+  broadcast(message.type, { ...message.data, roomId });
+}
+
 export function getClientCount() {
   return isConnected ? 1 : 0;
 }

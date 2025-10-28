@@ -35,11 +35,12 @@ export default function AvatarPicker({ onSelect, selectedAvatar }: AvatarPickerP
         <button
           key={avatarKey}
           onClick={() => onSelect(avatarKey)}
-          className={`relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all ${
-            selectedAvatar === avatarKey
-              ? 'border-blue-500 ring-2 ring-blue-200'
-              : 'border-gray-300 hover:border-gray-400'
-          }`}
+          className="relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all"
+          style={{
+            borderColor: selectedAvatar === avatarKey ? 'var(--primary)' : 'var(--border)',
+            boxShadow: selectedAvatar === avatarKey ? '0 0 0 2px var(--primary)' : 'none',
+            opacity: selectedAvatar === avatarKey ? 1 : 0.7
+          }}
         >
           <Image
             src={`/avatars/${avatarKey}.webp`}

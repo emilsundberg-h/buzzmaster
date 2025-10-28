@@ -4,7 +4,11 @@ import { useState, useEffect, useCallback } from 'react'
 import AvatarPicker from '@/components/AvatarPicker'
 import BigBuzzerButton from '@/components/BigBuzzerButton'
 import RoomJoin from '@/components/RoomJoin'
+import QuestionDisplay from '@/components/QuestionDisplay'
+import CategoryGameDisplay from '@/components/CategoryGameDisplay'
+import ChatMessenger from '@/components/ChatMessenger'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface UserProfile {
   id: string
@@ -43,8 +47,22 @@ export default function DevUserPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null)
   const [roundStatus, setRoundStatus] = useState<RoundStatus | null>(null)
+  const [currentCompetitionId, setCurrentCompetitionId] = useState<string | null>(null)
   const [myPressTimerExpiresAt, setMyPressTimerExpiresAt] = useState<string | null>(null)
   const [userPress, setUserPress] = useState<{ id: string; pressedAt: string } | null>(null)
+  const [currentQuestion, setCurrentQuestion] = useState<{
+    id: string
+    text: string
+    type: 'FREETEXT' | 'MULTIPLE_CHOICE'
+    imageUrl?: string | null
+    options?: string[] | null
+    points: number
+    scoringType: 'FIRST_ONLY' | 'DESCENDING' | 'ALL_EQUAL'
+    competitionId?: string
+  } | null>(null)
+  
+  // Theme context
+  const { setTheme } = useTheme()
   
   // Debug roundStatus changes
   useEffect(() => {
@@ -81,14 +99,14 @@ export default function DevUserPage() {
   // WebSocket connection
   const { isConnected, lastMessage, sendMessage } = useWebSocket('ws://localhost:3001/ws')
   
-  const updateRoundFromMessage = useCallback((messageData: any) => {
+  const updateRoundFromMessage = useCallback((messageData: RoundStatus | { round?: RoundStatus } | undefined) => {
     console.log('updateRoundFromMessage: Received data:', messageData)
-    if (messageData?.round) {
+    if (messageData && 'round' in messageData && messageData.round) {
       console.log('updateRoundFromMessage: Setting round status from round property:', messageData.round)
       setRoundStatus(messageData.round)
     } else if (messageData) {
       console.log('updateRoundFromMessage: Setting round status directly:', messageData)
-      setRoundStatus(messageData)
+      setRoundStatus(messageData as RoundStatus)
     }
   }, [])
 
@@ -220,6 +238,35 @@ export default function DevUserPage() {
           case 'competition:created':
             console.log('WebSocket: Competition created event received')
             break
+          case 'question:sent':
+            console.log('WebSocket: Question sent event received')
+            setCurrentQuestion(actualMessage.data?.question ? {
+              ...actualMessage.data.question,
+              competitionId: actualMessage.data.competitionId
+            } : null)
+            break
+          case 'question:completed':
+            console.log('WebSocket: Question completed event received')
+            setCurrentQuestion(null)
+            break
+          case 'theme:changed':
+            console.log('WebSocket: Theme changed event received', actualMessage.data?.theme)
+            if (actualMessage.data?.theme) {
+              setTheme(actualMessage.data.theme)
+            }
+            break
+          case 'category-game:started':
+          case 'category-game:next-player':
+          case 'category-game:paused':
+          case 'category-game:resumed':
+          case 'category-game:completed':
+            console.log('WebSocket: Category game event received:', actualMessage.type)
+            // These are handled by CategoryGameDisplay component
+            break
+          case 'chat:message':
+          case 'chat:poke':
+            // These are handled by ChatMessenger component
+            break
           default:
             console.log('WebSocket: Unknown wrapped message type:', actualMessage.type)
         }
@@ -282,6 +329,35 @@ export default function DevUserPage() {
               fetchUserRoom()
             }
             break
+          case 'question:sent':
+            console.log('WebSocket: Question sent event received (direct)')
+            setCurrentQuestion(lastMessage.data?.question ? {
+              ...lastMessage.data.question,
+              competitionId: lastMessage.data.competitionId
+            } : null)
+            break
+          case 'question:completed':
+            console.log('WebSocket: Question completed event received (direct)')
+            setCurrentQuestion(null)
+            break
+          case 'theme:changed':
+            console.log('WebSocket: Theme changed event received (direct)', lastMessage.data?.theme)
+            if (lastMessage.data?.theme) {
+              setTheme(lastMessage.data.theme)
+            }
+            break
+          case 'category-game:started':
+          case 'category-game:next-player':
+          case 'category-game:paused':
+          case 'category-game:resumed':
+          case 'category-game:completed':
+            console.log('WebSocket: Category game event received (direct):', lastMessage.type)
+            // These are handled by CategoryGameDisplay component
+            break
+          case 'chat:message':
+          case 'chat:poke':
+            // These are handled by ChatMessenger component
+            break
           case 'connected':
             console.log('WebSocket: Connected to server')
             break
@@ -307,16 +383,21 @@ export default function DevUserPage() {
       
       console.log('fetchRoundStatus: API response:', data)
       
-      if (data.competition && data.competition.rounds && Array.isArray(data.competition.rounds) && data.competition.rounds.length > 0) {
-        const latestRound = data.competition.rounds[0]
-        console.log('fetchRoundStatus: Setting round status to:', latestRound)
-        console.log('Latest round startedAt:', latestRound.startedAt)
-        console.log('Latest round endedAt:', latestRound.endedAt)
-        console.log('Latest round buttonsEnabled:', latestRound.buttonsEnabled)
-        setRoundStatus(latestRound)
-      } else {
-        console.log('fetchRoundStatus: No rounds found, setting status to null')
-        setRoundStatus(null)
+      if (data.competition) {
+        // Save competition ID
+        setCurrentCompetitionId(data.competition.id)
+        
+        if (data.competition.rounds && Array.isArray(data.competition.rounds) && data.competition.rounds.length > 0) {
+          const latestRound = data.competition.rounds[0]
+          console.log('fetchRoundStatus: Setting round status to:', latestRound)
+          console.log('Latest round startedAt:', latestRound.startedAt)
+          console.log('Latest round endedAt:', latestRound.endedAt)
+          console.log('Latest round buttonsEnabled:', latestRound.buttonsEnabled)
+          setRoundStatus(latestRound)
+        } else {
+          console.log('fetchRoundStatus: No rounds found, setting status to null')
+          setRoundStatus(null)
+        }
       }
       console.log('========================')
     } catch (error) {
@@ -457,9 +538,35 @@ export default function DevUserPage() {
     }
   }
 
+  const handleSubmitAnswer = async (answer: string) => {
+    if (!currentQuestion) return
+
+    try {
+      const response = await fetchWithUserId('/api/questions/answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionId: currentQuestion.id,
+          competitionId: currentQuestion.competitionId,
+          answer
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to submit answer')
+      }
+
+      console.log('Answer submitted successfully')
+    } catch (error) {
+      console.error('Submit answer failed:', error)
+      throw error
+    }
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
         <div className="text-xl">Loading...</div>
       </div>
     )
@@ -468,42 +575,52 @@ export default function DevUserPage() {
   // Profile setup
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+        <div className="p-8 rounded-lg shadow-lg max-w-md w-full" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border)' }}>
           <h1 className="text-2xl font-bold text-center mb-6">Setup Your Profile (DEV MODE)</h1>
           
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
                 Choose Username
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2"
+                style={{ 
+                  backgroundColor: 'var(--input-bg)', 
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)'
+                }}
                 placeholder="Enter your username"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
                 User ID (for testing)
               </label>
               <input
                 type="text"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 font-mono text-sm"
+                style={{ 
+                  backgroundColor: 'var(--input-bg)', 
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)'
+                }}
                 placeholder="Enter unique user ID"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs opacity-70 mt-1">
                 Each tab/browser needs a unique ID for testing multiple users
               </p>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
                 Choose Avatar
               </label>
               <AvatarPicker
@@ -528,10 +645,10 @@ export default function DevUserPage() {
   // Room join
   if (!currentRoom && !showRoomJoin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+        <div className="p-8 rounded-lg shadow-lg max-w-md w-full text-center" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border)' }}>
           <h1 className="text-2xl font-bold mb-6">Welcome, {profile.username}!</h1>
-          <p className="text-gray-600 mb-6">You need to join a competition room to start playing.</p>
+          <p className="opacity-80 mb-6">You need to join a competition room to start playing.</p>
           <button
             onClick={() => setShowRoomJoin(true)}
             className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600"
@@ -549,11 +666,11 @@ export default function DevUserPage() {
 
   // Main user interface
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-3xl font-bold mb-2">
             Welcome, {profile.username}! (DEV MODE)
           </h1>
           <p className="text-xl text-gray-600">
@@ -622,6 +739,34 @@ export default function DevUserPage() {
           )}
         </div>
       </div>
+
+      {/* Question Display Modal */}
+      {currentQuestion && profile && (
+        <QuestionDisplay
+          question={currentQuestion}
+          avatarKey={profile.avatarKey}
+          onSubmitAnswer={handleSubmitAnswer}
+          onClose={() => setCurrentQuestion(null)}
+        />
+      )}
+
+      {/* Category Game Display */}
+      {currentCompetitionId && userId && (
+        <CategoryGameDisplay
+          competitionId={currentCompetitionId}
+          currentUserId={userId}
+          onWebSocketMessage={lastMessage}
+        />
+      )}
+
+      {/* Chat Messenger */}
+      {currentRoom && userId && (
+        <ChatMessenger
+          roomId={currentRoom.id}
+          currentUserId={userId}
+          lastWebSocketMessage={lastMessage}
+        />
+      )}
     </div>
   )
 }

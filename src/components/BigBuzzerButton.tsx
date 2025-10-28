@@ -150,17 +150,18 @@ export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstP
               strokeWidth="14"
               opacity="0.2"
             />
-            {/* Progress circle - solid blue */}
+            {/* Progress circle - theme-aware color */}
             <circle
               cx="104"
               cy="104"
               r="96"
               fill="none"
-              stroke="#2563eb"
+              stroke="currentColor"
               strokeWidth="14"
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={offset}
+              className="timer-bar"
             />
           </svg>
         )}

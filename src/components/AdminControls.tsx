@@ -66,12 +66,12 @@ export default function AdminControls({
   return (
     <div className="space-y-8">
       {/* Round Controls */}
-      <div className="bg-white p-6 rounded-lg shadow">
+      <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
         <h2 className="text-xl font-bold mb-4">Round Controls</h2>
         
         <div className="space-y-4">
           {/* Timer Settings */}
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded">
+          <div className="flex items-center gap-4 p-4 rounded" style={{ backgroundColor: 'var(--input-bg)' }}>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -93,7 +93,7 @@ export default function AdminControls({
                   max="300"
                   className="w-20 px-2 py-1 border rounded"
                 />
-                <span className="text-sm text-gray-600">seconds</span>
+                <span className="text-sm opacity-70">seconds</span>
               </div>
             )}
           </div>
@@ -129,7 +129,7 @@ export default function AdminControls({
           </div>
 
           {currentRound && (
-            <div className="mt-4 p-4 bg-gray-50 rounded">
+            <div className="mt-4 p-4 rounded" style={{ backgroundColor: 'var(--input-bg)' }}>
               <p><strong>Status:</strong> {isRoundActive ? 'Active' : 'Inactive'}</p>
               <p><strong>Buttons:</strong> {currentRound.buttonsEnabled ? 'Enabled' : 'Disabled'}</p>
             </div>
@@ -138,12 +138,12 @@ export default function AdminControls({
       </div>
 
       {/* Manual Score Adjustment */}
-      <div className="bg-white p-6 rounded-lg shadow">
+      <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
         <h2 className="text-xl font-bold mb-4">Manual Score Adjustment</h2>
         
         <div className="space-y-4">
           {users.map(user => (
-            <div key={user.id} className="flex items-center justify-between p-4 border rounded">
+            <div key={user.id} className="flex items-center justify-between p-4 border rounded" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center space-x-4">
                 <img
                   src={`/avatars/${user.avatarKey}.webp`}
@@ -151,7 +151,7 @@ export default function AdminControls({
                   className="w-8 h-8 rounded-full"
                 />
                 <span className="font-medium">{user.username}</span>
-                <span className="text-lg font-bold text-blue-600">{user.score}</span>
+                <span className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{user.score}</span>
               </div>
               
               <div className="flex items-center space-x-2">
@@ -162,7 +162,7 @@ export default function AdminControls({
                   -1
                 </button>
                 
-                <span className="px-3 py-1 bg-gray-100 rounded min-w-[2rem] text-center">
+                <span className="px-3 py-1 rounded min-w-[2rem] text-center" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}>
                   {scoreChanges[user.id] || 0}
                 </span>
                 
@@ -176,7 +176,7 @@ export default function AdminControls({
                 <button
                   onClick={() => applyScoreChange(user.id)}
                   disabled={!scoreChanges[user.id]}
-                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Apply
                 </button>
@@ -187,15 +187,15 @@ export default function AdminControls({
       </div>
 
       {/* Recent Presses */}
-      <div className="bg-white p-6 rounded-lg shadow">
+      <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
         <h2 className="text-xl font-bold mb-4">Recent Presses</h2>
         
         {recentPresses.length === 0 ? (
-          <p className="text-gray-500">No recent presses</p>
+          <p className="opacity-70">No recent presses</p>
         ) : (
           <div className="space-y-2">
             {recentPresses.map(press => (
-              <div key={press.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+              <div key={press.id} className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--input-bg)' }}>
                 <div className="flex items-center space-x-3">
                   <img
                     src={`/avatars/${press.user.avatarKey}.webp`}
@@ -204,7 +204,7 @@ export default function AdminControls({
                   />
                   <span className="font-medium">{press.user.username}</span>
                 </div>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm opacity-70">
                   {new Date(press.pressedAt).toLocaleTimeString()}
                 </span>
               </div>

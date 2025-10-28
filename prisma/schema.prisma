@@ -16,6 +16,10 @@ model User {
   createdAt  DateTime @default(now())
   presses    Press[]
   roomMemberships RoomMembership[]
+  sentMessages Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  sentPokes Poke[] @relation("SentPokes")
+  receivedPokes Poke[] @relation("ReceivedPokes")
 }
 
 model Room {
@@ -26,6 +30,8 @@ model Room {
   createdAt   DateTime @default(now())
   competitions Competition[]
   memberships RoomMembership[]
+  messages    Message[]
+  pokes       Poke[]
 }
 
 model RoomMembership {
@@ -47,6 +53,8 @@ model Competition {
   status     CompetitionStatus @default(DRAFT)
   createdAt  DateTime @default(now())
   rounds     Round[]
+  questionUsages QuestionUsage[]
+  categoryGames CategoryGame[]
   room       Room     @relation(fields: [roomId], references: [id])
 }
 
@@ -90,23 +98,126 @@ enum CompetitionStatus {
 }
 
 model Question {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
+  text           String
+  type           QuestionType   @default(FREETEXT)
+  imageUrl       String?        // Optional image for the question
+  options        String?        // JSON string for multiple choice options
+  correctAnswer  String         // For multiple choice: the correct option index/letter
+  points         Int            @default(1)
+  scoringType    ScoringType    @default(ALL_EQUAL)
+  createdAt      DateTime       @default(now())
+  answers        Answer[]
+  usages         QuestionUsage[] // Track where this question has been used
+}
+
+// Tracks when a question is used in a competition
+model QuestionUsage {
+  id             String         @id @default(cuid())
+  questionId     String
   competitionId  String
   roundId        String?
-  text           String
-  correctAnswer  String
-  points         Int      @default(1)
+  status         QuestionStatus @default(DRAFT)
+  sentAt         DateTime?      // When the question was sent to users
+  completedAt    DateTime?      // When the question was completed/graded
+  createdAt      DateTime       @default(now())
+  
+  question       Question       @relation(fields: [questionId], references: [id])
+  competition    Competition    @relation(fields: [competitionId], references: [id])
+  
+  @@unique([questionId, competitionId])
 }
 
 model Answer {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   questionId String
+  competitionId String  // Track which competition this answer is for
   userId     String
   text       String
   normalized String
   isCorrect  Boolean  @default(false)
   points     Int      @default(0)
   reviewed   Boolean  @default(false)
+  answeredAt DateTime @default(now())
+  reviewedAt DateTime?
+  
+  question   Question @relation(fields: [questionId], references: [id])
+  
+  @@unique([questionId, competitionId, userId])
+}
 
-  createdAt  DateTime @default(now())
+enum QuestionType {
+  FREETEXT
+  MULTIPLE_CHOICE
+}
+
+enum ScoringType {
+  FIRST_ONLY      // Only first correct answer gets points
+  DESCENDING      // Descending points (1st gets most, last gets least)
+  ALL_EQUAL       // All correct answers get the same points
+}
+
+enum QuestionStatus {
+  DRAFT           // Question created but not sent
+  ACTIVE          // Question sent to users, awaiting answers
+  COMPLETED       // Question graded and completed
+}
+
+// Chat messages
+model Message {
+  id            String   @id @default(cuid())
+  roomId        String
+  senderId      String
+  receiverId    String?  // null means message to all (group chat)
+  content       String
+  createdAt     DateTime @default(now())
+  read          Boolean  @default(false)
+  
+  room          Room     @relation(fields: [roomId], references: [id])
+  sender        User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver      User?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+// Pokes
+model Poke {
+  id            String   @id @default(cuid())
+  roomId        String
+  senderId      String
+  receiverId    String
+  createdAt     DateTime @default(now())
+  seen          Boolean  @default(false)
+  
+  room          Room     @relation(fields: [roomId], references: [id])
+  sender        User     @relation("SentPokes", fields: [senderId], references: [id])
+  receiver      User     @relation("ReceivedPokes", fields: [receiverId], references: [id])
+}
+
+// Category Game
+model CategoryGame {
+  id              String           @id @default(cuid())
+  competitionId   String
+  categoryName    String           // Name of the category
+  timePerPlayer   Int              // Time in seconds per player
+  winnerPoints    Int              // Points for the winner
+  turnOrder       String           // JSON array of userId in order
+  currentTurnIndex Int             @default(0)
+  currentPlayerId String?          // Who is currently active
+  status          CategoryGameStatus @default(ACTIVE)
+  isPaused        Boolean          @default(false)
+  timerStartedAt  DateTime?        // When current turn timer started
+  timerPausedAt   DateTime?        // When timer was paused (null if not paused)
+  pausedTimeElapsed Int            @default(0) // Seconds elapsed when paused
+  eliminatedPlayers String         @default("[]") // JSON array of eliminated userIds
+  winnerId        String?          // Winner's userId
+  createdAt       DateTime         @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  
+  competition     Competition      @relation(fields: [competitionId], references: [id])
+}
+
+enum CategoryGameStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
 }

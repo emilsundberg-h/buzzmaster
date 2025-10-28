@@ -15,11 +15,11 @@ interface ScoreColumnsProps {
 
 export default function ScoreColumns({ users }: ScoreColumnsProps) {
   return (
-    <div className="grid grid-flow-col grid-cols-auto gap-6 p-6 bg-gray-50 rounded-lg">
+    <div className="grid grid-flow-col grid-cols-auto gap-6 p-6 rounded-lg" style={{ backgroundColor: 'var(--card-bg)' }}>
       {users.map(user => (
         <div key={user.id} className="flex flex-col items-center space-y-4">
           {/* Avatar */}
-          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-gray-300">
+          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2" style={{ borderColor: 'var(--border)' }}>
             <Image
               src={`/avatars/${user.avatarKey}.webp`}
               alt={user.username}
@@ -29,20 +29,21 @@ export default function ScoreColumns({ users }: ScoreColumnsProps) {
           </div>
           
           {/* Username */}
-          <h3 className="text-lg font-semibold text-gray-800 text-center">
+          <h3 className="text-lg font-semibold text-center" style={{ color: 'var(--foreground)' }}>
             {user.username}
           </h3>
           
           {/* Score */}
-          <div className="text-4xl font-bold text-blue-600">
+          <div className="text-4xl font-bold" style={{ color: 'var(--primary)' }}>
             {user.score}
           </div>
           
           {/* Score bar */}
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--border)' }}>
             <div 
-              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              className="h-2 rounded-full transition-all duration-300"
               style={{ 
+                backgroundColor: 'var(--primary)',
                 width: `${Math.min(100, (user.score / Math.max(...users.map(u => u.score), 1)) * 100)}%` 
               }}
             />

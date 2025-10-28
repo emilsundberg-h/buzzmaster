@@ -5,7 +5,12 @@ import ScoreColumns from '@/components/ScoreColumns'
 import AdminControls from '@/components/AdminControls'
 import LivePressList from '@/components/LivePressList'
 import AnswerModal from '@/components/AnswerModal'
+import QuestionManager from '@/components/QuestionManager'
+import CategoryGameManager from '@/components/CategoryGameManager'
+import ThemeSelector from '@/components/ThemeSelector'
+import ChatMessenger from '@/components/ChatMessenger'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { useTheme, Theme } from '@/contexts/ThemeContext'
 
 interface User {
   id: string
@@ -58,6 +63,7 @@ export default function DevAdminPage() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null)
   const [currentRound, setCurrentRound] = useState<Round | null>(null)
+  const [currentCompetitionId, setCurrentCompetitionId] = useState<string | null>(null)
   
   // Debug currentRound changes
   useEffect(() => {
@@ -78,6 +84,7 @@ export default function DevAdminPage() {
   const [firstPress, setFirstPress] = useState<Press | null>(null)
   const [savedTimerEnabled, setSavedTimerEnabled] = useState(false)
   const [savedTimerDuration, setSavedTimerDuration] = useState(10)
+  const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0)
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -85,8 +92,24 @@ export default function DevAdminPage() {
     currentRoundRef.current = currentRound
   }, [showAnswerModal, currentRound])
 
+  // Theme context
+  const { theme } = useTheme()
+  
   // WebSocket connection
   const { isConnected, lastMessage, sendMessage } = useWebSocket('ws://localhost:3001/ws')
+  
+  // Handle theme change and broadcast to all users
+  const handleThemeChange = useCallback((newTheme: Theme) => {
+    if (currentRoom) {
+      sendMessage({
+        type: 'theme:changed',
+        data: {
+          theme: newTheme,
+          roomId: currentRoom.id
+        }
+      })
+    }
+  }, [currentRoom, sendMessage])
   
   const fetchScoreboard = useCallback(async () => {
     try {
@@ -244,6 +267,11 @@ export default function DevAdminPage() {
                 case 'competition:created':
                   console.log('WebSocket: Competition created event received')
                   break
+                case 'question:answered':
+                  console.log('WebSocket: Question answered event received')
+                  // Trigger refresh of questions to show new answers
+                  setQuestionRefreshTrigger(prev => prev + 1)
+                  break
                 default:
                   console.log('WebSocket: Unknown wrapped message type:', actualMessage.type)
               }
@@ -355,6 +383,15 @@ export default function DevAdminPage() {
                   break
                 case 'room:memberKicked':
                   fetchRooms()
+                  break
+                case 'question:answered':
+                  console.log('WebSocket: Question answered event received (direct)')
+                  // Trigger refresh of questions to show new answers
+                  setQuestionRefreshTrigger(prev => prev + 1)
+                  break
+                case 'chat:message':
+                case 'chat:poke':
+                  // These are handled by ChatMessenger component
                   break
                 case 'connected':
                   console.log('WebSocket: Connected to server')
@@ -486,6 +523,9 @@ export default function DevAdminPage() {
       
       const competitionData = await competitionResponse.json()
       console.log('Competition created:', competitionData)
+      
+      // Save competition ID
+      setCurrentCompetitionId(competitionData.competition.id)
       
       // Then start a round with timer settings
       console.log('Starting round...')
@@ -703,14 +743,14 @@ export default function DevAdminPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-3xl font-bold mb-2">
             Admin Dashboard (DEV MODE)
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg opacity-80">
             Welcome, Admin User
           </p>
           <div className="mt-4 space-x-2">
@@ -729,7 +769,7 @@ export default function DevAdminPage() {
         </div>
 
         {/* Room Management */}
-        <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <div className="p-6 rounded-lg shadow mb-8" style={{ backgroundColor: 'var(--card-bg)' }}>
           <h2 className="text-xl font-bold mb-4">Room Management</h2>
           
           <div className="flex flex-wrap gap-4 mb-4">
@@ -738,7 +778,12 @@ export default function DevAdminPage() {
               value={newRoomName}
               onChange={(e) => setNewRoomName(e.target.value)}
               placeholder="Room name"
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2"
+              style={{ 
+                backgroundColor: 'var(--input-bg)', 
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)'
+              }}
             />
             <button
               onClick={handleCreateRoom}
@@ -756,22 +801,23 @@ export default function DevAdminPage() {
                 {rooms.map(room => (
                   <div
                     key={room.id}
-                    className={`p-4 border rounded-lg transition-all ${
-                      currentRoom?.id === room.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                    className="p-4 border-2 rounded-lg transition-all"
+                    style={{
+                      backgroundColor: currentRoom?.id === room.id ? 'var(--input-bg)' : 'var(--card-bg)',
+                      borderColor: currentRoom?.id === room.id ? 'var(--primary)' : 'var(--border)',
+                      color: 'var(--foreground)'
+                    }}
                   >
                     <div 
                       onClick={() => setCurrentRoom(room)}
                       className="cursor-pointer"
                     >
                       <h4 className="font-semibold">{room.name}</h4>
-                      <p className="text-sm text-gray-600">Code: {room.code}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm opacity-80">Code: {room.code}</p>
+                      <p className="text-sm opacity-80">
                         Members: {room.memberships?.length || 0}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm opacity-80">
                         Status: {room.status}
                       </p>
                     </div>
@@ -835,6 +881,11 @@ export default function DevAdminPage() {
           )}
         </div>
 
+        {/* Theme Selector */}
+        <div className="mb-8">
+          <ThemeSelector onThemeChange={handleThemeChange} />
+        </div>
+
         {/* Admin Controls */}
         <div className="mb-8">
           <AdminControls
@@ -847,6 +898,30 @@ export default function DevAdminPage() {
             recentPresses={recentPresses}
           />
         </div>
+
+        {/* Question Management */}
+        {currentCompetitionId && (
+          <div className="mb-8">
+            <QuestionManager 
+              competitionId={currentCompetitionId}
+              refreshTrigger={questionRefreshTrigger}
+              onQuestionSent={() => {
+                console.log('Question sent to users')
+              }}
+            />
+          </div>
+        )}
+
+        {/* Category Game Management */}
+        {currentCompetitionId && currentRoom && (
+          <div className="mb-8">
+            <CategoryGameManager 
+              competitionId={currentCompetitionId}
+              roomId={currentRoom.id}
+              onWebSocketMessage={lastMessage}
+            />
+          </div>
+        )}
 
         {/* Live Press List */}
         <div className="mb-8">
@@ -878,6 +953,15 @@ export default function DevAdminPage() {
         }}
         onSubmit={handleAnswerSubmit}
         onGiveToNext={handleGiveToNext}
+      />
+    )}
+
+    {/* Chat Messenger */}
+    {currentRoom && (
+      <ChatMessenger
+        roomId={currentRoom.id}
+        currentUserId="admin"
+        lastWebSocketMessage={lastMessage}
       />
     )}
     </>

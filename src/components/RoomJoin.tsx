@@ -24,24 +24,29 @@ export default function RoomJoin({ onJoinRoom }: RoomJoinProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--background)' }}>
+      <div className="p-8 rounded-lg shadow-lg max-w-md w-full" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
         <h1 className="text-2xl font-bold text-center mb-6">Join Competition Room</h1>
         
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-2">
               Room Code
             </label>
             <input
               type="text"
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-2xl font-mono tracking-widest"
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 text-center text-2xl font-mono tracking-widest"
+              style={{ 
+                backgroundColor: 'var(--input-bg)', 
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)'
+              }}
               placeholder="ABC123"
               maxLength={6}
             />
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm opacity-70 mt-1">
               Enter the 6-character room code provided by the admin
             </p>
           </div>
@@ -58,6 +63,7 @@ export default function RoomJoin({ onJoinRoom }: RoomJoinProps) {
     </div>
   )
 }
+
 
 
 

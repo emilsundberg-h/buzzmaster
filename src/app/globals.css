@@ -3,6 +3,12 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary: #3b82f6;
+  --secondary: #10b981;
+  --accent: #f59e0b;
+  --border: #e5e7eb;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
 }
 
 @theme inline {
@@ -12,15 +18,74 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark Mode (default) */
+body.theme-dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --primary: #3b82f6;
+  --secondary: #10b981;
+  --accent: #f59e0b;
+  --border: #334155;
+  --card-bg: #1e293b;
+  --input-bg: #334155;
+}
+
+/* Monochrome Mode */
+body.theme-monochrome {
+  --background: #000000;
+  --foreground: #ffffff;
+  --primary: #ffffff;
+  --secondary: #ffffff;
+  --accent: #ffffff;
+  --border: #ffffff;
+  --card-bg: #000000;
+  --input-bg: #000000;
+}
+
+/* Pastel Mode */
+body.theme-pastel {
+  --background: #fef3e2;
+  --foreground: #3e2723;
+  --primary: #a78bfa;
+  --secondary: #86efac;
+  --accent: #fcd34d;
+  --border: #f3d5b5;
+  --card-bg: #fef9f3;
+  --input-bg: #ffffff;
+}
+
+/* Light Mode */
+body.theme-light {
+  --background: #ffffff;
+  --foreground: #1f2937;
+  --primary: #3b82f6;
+  --secondary: #10b981;
+  --accent: #f59e0b;
+  --border: #e5e7eb;
+  --card-bg: #f9fafb;
+  --input-bg: #ffffff;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Timer bar color based on theme */
+body.theme-dark .timer-bar {
+  stroke: #3b82f6;
+}
+
+body.theme-monochrome .timer-bar {
+  stroke: #ffffff;
+}
+
+body.theme-pastel .timer-bar {
+  stroke: #a78bfa;
+}
+
+body.theme-light .timer-bar {
+  stroke: #3b82f6;
 }

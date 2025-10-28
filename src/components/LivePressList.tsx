@@ -23,11 +23,11 @@ export default function LivePressList({ presses }: LivePressListProps) {
   }, [presses])
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
+    <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
       <h2 className="text-xl font-bold mb-4">Live Press Feed</h2>
       
       {sortedPresses.length === 0 ? (
-        <p className="text-gray-500">No presses yet</p>
+        <p className="opacity-70">No presses yet</p>
       ) : (
         <div className="space-y-3">
           {sortedPresses.map((press, index) => (
