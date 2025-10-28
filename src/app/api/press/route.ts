@@ -62,14 +62,15 @@ export async function POST(request: NextRequest) {
 
     const isFirstPress = !otherPresses;
 
-    // Only give timer to the first presser
+    // Only give timer to the first presser if hasTimer is enabled
     const timerExpiresAt =
-      isFirstPress && activeRound.timerDuration
+      isFirstPress && activeRound.hasTimer && activeRound.timerDuration
         ? new Date(Date.now() + activeRound.timerDuration * 1000)
         : null;
 
     console.log("=== PRESS API ===");
     console.log("isFirstPress:", isFirstPress);
+    console.log("activeRound.hasTimer:", activeRound.hasTimer);
     console.log("activeRound.timerDuration:", activeRound.timerDuration);
     console.log("timerExpiresAt:", timerExpiresAt);
 

@@ -18,6 +18,7 @@ model User {
   roomMemberships RoomMembership[]
   sentMessages Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+  messageReads MessageRead[] // Messages this user has read
   sentPokes Poke[] @relation("SentPokes")
   receivedPokes Poke[] @relation("ReceivedPokes")
 }
@@ -165,17 +166,37 @@ enum QuestionStatus {
 
 // Chat messages
 model Message {
-  id            String   @id @default(cuid())
+  id            String        @id @default(cuid())
   roomId        String
   senderId      String
-  receiverId    String?  // null means message to all (group chat)
+  receiverId    String?       // null means message to all (group chat)
   content       String
-  createdAt     DateTime @default(now())
-  read          Boolean  @default(false)
+  createdAt     DateTime      @default(now())
+  read          Boolean       @default(false) // Only for DMs now
   
-  room          Room     @relation(fields: [roomId], references: [id])
-  sender        User     @relation("SentMessages", fields: [senderId], references: [id])
-  receiver      User?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  room          Room          @relation(fields: [roomId], references: [id])
+  sender        User          @relation("SentMessages", fields: [senderId], references: [id])
+  receiver      User?         @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  readBy        MessageRead[] // Track who has read this message (for group messages)
+  
+  @@index([roomId])
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+// Track who has read which message (for group messages)
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId]) // A user can only read a message once
+  @@index([userId])
+  @@index([messageId])
 }
 
 // Pokes

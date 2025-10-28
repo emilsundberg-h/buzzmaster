@@ -103,17 +103,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get unread group messages count
-    const unreadGroupCount = await db.message.count({
+    // Count unread group messages using MessageRead table
+    // Get all group messages
+    const groupMessages = await db.message.findMany({
       where: {
         roomId,
-        receiverId: null,
-        read: false,
+        receiverId: null, // Group messages
         NOT: {
-          senderId: currentUser.id,
+          senderId: currentUser.id, // Not my own messages
         },
       },
+      select: {
+        id: true,
+      },
     });
+
+    // Count how many of these messages the current user has NOT read
+    const readMessageIds = await db.messageRead.findMany({
+      where: {
+        userId: currentUser.id,
+        messageId: {
+          in: groupMessages.map((m) => m.id),
+        },
+      },
+      select: {
+        messageId: true,
+      },
+    });
+
+    const readIds = new Set(readMessageIds.map((r) => r.messageId));
+    const unreadGroupCount = groupMessages.filter(
+      (m) => !readIds.has(m.id)
+    ).length;
 
     return NextResponse.json({
       participants,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { MessageCircle, X, Users, Send } from 'lucide-react'
+import { MessageCircle, X, Users, Send, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Message {
   id: string
@@ -50,7 +50,7 @@ interface ChatMessengerProps {
 }
 
 export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMessage }: ChatMessengerProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
   const [activeChat, setActiveChat] = useState<'group' | string | null>(null) // 'group' or userId for DM
   const [participants, setParticipants] = useState<Participant[]>([])
   const [unreadGroupCount, setUnreadGroupCount] = useState(0)
@@ -61,7 +61,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
   const [pokeFrom, setPokeFrom] = useState<string>('')
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
+  
   // Calculate total unread messages
   const totalUnread = participants.reduce((sum, p) => sum + p.unreadCount, 0) + unreadGroupCount
 
@@ -195,7 +195,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
         receiverId: newMessage.receiverId,
         activeChat,
         currentUserId,
-        isOpen
+        isMinimized
       })
       
       // If viewing this chat, add message and mark as read
@@ -258,23 +258,19 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
     }
   }, [lastWebSocketMessage, activeChat, currentUserId])
 
-  // Fetch participants when opening or when messages arrive
+  // Fetch participants on mount
   useEffect(() => {
-    if (isOpen) {
-      fetchParticipants()
-    }
-  }, [isOpen])
+    fetchParticipants()
+  }, [])
 
-  // Refetch participants periodically when chat is open
+  // Refetch participants periodically
   useEffect(() => {
-    if (!isOpen) return
-    
     const interval = setInterval(() => {
       fetchParticipants()
     }, 3000) // Refresh every 3 seconds
 
     return () => clearInterval(interval)
-  }, [isOpen])
+  }, [])
 
   // Fetch messages when switching chats
   useEffect(() => {
@@ -288,10 +284,32 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Click outside to minimize
+  useEffect(() => {
+    if (isMinimized) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const chatWindow = document.querySelector('[data-chat-window]')
+      if (chatWindow && !chatWindow.contains(event.target as Node)) {
+        setIsMinimized(true)
+      }
+    }
+
+    // Add slight delay to avoid minimizing immediately after opening
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+    }, 100)
+
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isMinimized])
+
   // Get active chat info
   const getActiveChatInfo = () => {
     if (activeChat === 'group') {
-      return { name: 'Alla', avatarKey: null }
+      return { name: 'All', avatarKey: null }
     }
     const participant = participants.find(p => p.id === activeChat)
     return participant ? { name: participant.username, avatarKey: participant.avatarKey } : null
@@ -301,10 +319,34 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
 
   return (
     <>
+      {/* Hide scrollbars and add animations */}
+      <style jsx>{`
+        .chat-scrollable {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE/Edge */
+        }
+        .chat-scrollable::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
+        }
+        .chat-slide-up {
+          animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
       {/* Poke notification */}
       {showPoke && (
         <div 
-          className="fixed bottom-24 right-6 rounded-lg shadow-2xl px-6 py-4 z-50 animate-bounce"
+          className="fixed bottom-[520px] right-[420px] rounded-lg shadow-2xl px-6 py-4 z-50 animate-bounce"
           style={{ backgroundColor: 'var(--primary)', color: 'white' }}
         >
           <div className="text-lg font-bold">
@@ -313,46 +355,50 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
         </div>
       )}
 
-      {/* Chat button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-lg flex items-center justify-center z-40 hover:scale-110 transition-transform"
-        style={{ backgroundColor: 'var(--primary)' }}
-      >
-        {isOpen ? (
-          <X className="text-white" size={28} />
-        ) : (
-          <>
-            <MessageCircle className="text-white" size={28} />
-            {totalUnread > 0 && (
-              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                {totalUnread > 99 ? '99+' : totalUnread}
-              </div>
-            )}
-          </>
-        )}
-      </button>
-
       {/* Chat window */}
-      {isOpen && (
-        <div 
-          className="fixed bottom-24 right-6 w-96 h-[600px] rounded-lg shadow-2xl flex flex-col overflow-hidden z-40"
-          style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)', borderColor: 'var(--border)' }}
-        >
-          {!activeChat ? (
-            // Participant list
-            <>
-              <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-                <h3 className="text-lg font-bold">Meddelanden</h3>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="hover:opacity-70"
-                >
-                  <X size={24} />
-                </button>
-              </div>
+      <div 
+        data-chat-window
+        className={`fixed bottom-0 right-0 w-96 shadow-2xl flex flex-col overflow-hidden z-40 border-l border-t transition-all duration-300 ease-in-out ${isMinimized ? 'h-14' : 'h-[500px]'}`}
+        style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)', borderColor: 'var(--border)' }}
+      >
+        {/* Header with minimize button - only show when minimized */}
+        {isMinimized && (
+          <div 
+            className="p-4 border-b flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+            style={{ borderColor: 'var(--border)' }}
+            onClick={() => setIsMinimized(false)}
+          >
+            <div className="flex items-center gap-2">
+              <MessageCircle size={20} />
+              <h3 className="text-lg font-bold">Messages</h3>
+              {totalUnread > 0 && (
+                <div className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </div>
+              )}
+            </div>
+            <ChevronUp size={24} />
+          </div>
+        )}
 
-              <div className="flex-1 overflow-y-auto p-2">
+        {!isMinimized && (
+          <div className="chat-slide-up flex-1 flex flex-col min-h-0">
+            {/* Minimize button when chat is open */}
+            <div className="absolute top-2 right-2 z-50">
+              <button
+                onClick={() => setIsMinimized(true)}
+                className="p-2 rounded-full hover:bg-opacity-20 hover:bg-gray-500 transition-all duration-200"
+                style={{ color: 'var(--foreground)' }}
+              >
+                <ChevronDown size={20} />
+              </button>
+            </div>
+
+            {!activeChat ? (
+              // Participant list
+              <>
+
+              <div className="flex-1 min-h-0 overflow-y-auto p-2 pt-10 chat-scrollable">
                 {/* Group chat */}
                 <button
                   onClick={() => setActiveChat('group')}
@@ -363,8 +409,8 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
                     <Users className="text-white" size={24} />
                   </div>
                   <div className="flex-1 text-left">
-                    <div className="font-semibold">Alla</div>
-                    <div className="text-sm opacity-70">Gruppchat</div>
+                    <div className="font-semibold">All</div>
+                    <div className="text-sm opacity-70">Group chat</div>
                   </div>
                   {unreadGroupCount > 0 && (
                     <div className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
@@ -393,7 +439,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
                       <div className="flex-1 text-left">
                         <div className={participant.unreadCount > 0 ? "font-bold" : "font-semibold"}>{participant.username}</div>
                         {participant.unreadCount > 0 && (
-                          <div className="text-xs text-red-500">Nytt meddelande</div>
+                          <div className="text-xs text-red-500">New message</div>
                         )}
                       </div>
                       {participant.unreadCount > 0 && (
@@ -420,42 +466,34 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
           ) : (
             // Chat view
             <>
-              <div className="p-4 border-b flex items-center gap-3 justify-between" style={{ borderColor: 'var(--border)' }}>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={async () => {
-                      // Fetch participants to refresh unread counts before going back
-                      await fetchParticipants()
-                      setActiveChat(null)
-                      setMessages([])
-                    }}
-                    className="text-2xl hover:opacity-70"
-                  >
-                    ←
-                  </button>
-                  {activeChatInfo?.avatarKey ? (
-                    <img
-                      src={`/avatars/${activeChatInfo.avatarKey}.webp`}
-                      alt={activeChatInfo.name}
-                      className="w-10 h-10 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--primary)' }}>
-                      <Users className="text-white" size={20} />
-                    </div>
-                  )}
-                  <h3 className="text-lg font-bold">{activeChatInfo?.name}</h3>
-                </div>
+              <div className="flex-shrink-0 p-4 pr-12 border-b flex items-center gap-3" style={{ borderColor: 'var(--border)' }}>
                 <button
-                  onClick={() => setIsOpen(false)}
-                  className="hover:opacity-70"
+                  onClick={async () => {
+                    // Fetch participants to refresh unread counts before going back
+                    await fetchParticipants()
+                    setActiveChat(null)
+                    setMessages([])
+                  }}
+                  className="text-2xl hover:opacity-70 transition-opacity leading-none"
                 >
-                  <X size={24} />
+                  ←
                 </button>
+                {activeChatInfo?.avatarKey ? (
+                  <img
+                    src={`/avatars/${activeChatInfo.avatarKey}.webp`}
+                    alt={activeChatInfo.name}
+                    className="w-10 h-10 rounded-full"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--primary)' }}>
+                    <Users className="text-white" size={20} />
+                  </div>
+                )}
+                <h3 className="text-lg font-bold">{activeChatInfo?.name}</h3>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 chat-scrollable">
                 {messages.map(message => {
                   const isOwnMessage = message.sender.clerkId === currentUserId
                   return (
@@ -490,7 +528,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
               </div>
 
               {/* Input */}
-              <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex-shrink-0 p-4 border-t" style={{ borderColor: 'var(--border)' }}>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -502,7 +540,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
                         handleSendMessage()
                       }
                     }}
-                    placeholder="Skriv ett meddelande..."
+                    placeholder="Write a message..."
                     className="flex-1 px-3 py-2 rounded-lg border"
                     style={{ 
                       backgroundColor: 'var(--input-bg)', 
@@ -523,8 +561,9 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
               </div>
             </>
           )}
+          </div>
+        )}
         </div>
-      )}
     </>
   )
 }

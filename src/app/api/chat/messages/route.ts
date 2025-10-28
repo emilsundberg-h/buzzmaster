@@ -285,20 +285,34 @@ export async function PATCH(request: NextRequest) {
         },
       });
     } else {
-      // Mark group messages as read (this is simplified - in a real app you'd need a separate read receipts table)
-      await db.message.updateMany({
+      // Mark group messages as read using MessageRead table
+      // Get all unread group messages
+      const unreadGroupMessages = await db.message.findMany({
         where: {
           roomId,
-          receiverId: null,
-          read: false,
+          receiverId: null, // Group messages
           NOT: {
-            senderId: user.id, // Don't mark own messages
+            senderId: user.id, // Not my own messages
           },
         },
-        data: {
-          read: true,
-        },
       });
+
+      // Create MessageRead entries for each unread message
+      for (const message of unreadGroupMessages) {
+        await db.messageRead.upsert({
+          where: {
+            messageId_userId: {
+              messageId: message.id,
+              userId: user.id,
+            },
+          },
+          create: {
+            messageId: message.id,
+            userId: user.id,
+          },
+          update: {}, // Already exists, do nothing
+        });
+      }
     }
 
     return NextResponse.json({ success: true });

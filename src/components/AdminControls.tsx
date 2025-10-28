@@ -40,7 +40,7 @@ export default function AdminControls({
   recentPresses
 }: AdminControlsProps) {
   const [scoreChanges, setScoreChanges] = useState<Record<string, number>>({})
-  const [timerEnabled, setTimerEnabled] = useState(false) // Default to false
+  const [timerDisabled, setTimerDisabled] = useState(false) // Default timer is ON
   const [timerDuration, setTimerDuration] = useState(10) // Default 10 seconds
 
   const handleScoreChange = (userId: string, change: number) => {
@@ -75,14 +75,14 @@ export default function AdminControls({
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={timerEnabled}
-                onChange={(e) => setTimerEnabled(e.target.checked)}
+                checked={timerDisabled}
+                onChange={(e) => setTimerDisabled(e.target.checked)}
                 className="w-4 h-4"
               />
-              <span className="font-medium">Enable Timer</span>
+              <span className="font-medium">Disable Timer</span>
             </label>
             
-            {timerEnabled && (
+            {!timerDisabled && (
               <div className="flex items-center gap-2">
                 <label className="text-sm">Duration:</label>
                 <input
@@ -101,7 +101,7 @@ export default function AdminControls({
           <div className="flex flex-wrap gap-4">
             {!isRoundActive ? (
               <button
-                onClick={() => onStartRound(timerEnabled, timerDuration)}
+                onClick={() => onStartRound(!timerDisabled, timerDuration)}
                 className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium"
               >
                 Start Competition
