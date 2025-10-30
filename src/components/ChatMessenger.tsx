@@ -50,7 +50,7 @@ interface ChatMessengerProps {
 }
 
 export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMessage }: ChatMessengerProps) {
-  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(true) // Default to minimized/closed
   const [activeChat, setActiveChat] = useState<'group' | string | null>(null) // 'group' or userId for DM
   const [participants, setParticipants] = useState<Participant[]>([])
   const [unreadGroupCount, setUnreadGroupCount] = useState(0)

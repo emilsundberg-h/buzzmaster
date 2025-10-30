@@ -5,7 +5,13 @@ import { broadcastToRoom } from "@/lib/websocket";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { competitionId, categoryName, timePerPlayer, winnerPoints } = body;
+    const {
+      competitionId,
+      categoryName,
+      timePerPlayer,
+      winnerPoints,
+      trophyId,
+    } = body;
 
     if (!competitionId || !categoryName || !timePerPlayer || !winnerPoints) {
       return NextResponse.json(
@@ -58,6 +64,7 @@ export async function POST(request: NextRequest) {
         isPaused: false,
         timerStartedAt: new Date(),
         startedAt: new Date(),
+        trophyId: trophyId || null,
       },
     });
 

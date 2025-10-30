@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Answer not found" }, { status: 404 });
     }
 
-    // Get the usage to find the competition and room
+    // Get the usage to find the competition, room, and trophy
     const usage = await db.questionUsage.findUnique({
       where: {
         questionId_competitionId: {
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
             room: true,
           },
         },
+        trophy: true,
       },
     });
 
@@ -90,6 +91,59 @@ export async function POST(request: NextRequest) {
             },
           },
         });
+
+        // Award trophy if this question has one
+        // Check if this is the first correct answer for THIS USAGE of the question
+        if (usage && usage.trophyId) {
+          // Check if anyone else has already been graded correct for this specific usage
+          const otherCorrectAnswer = await db.answer.findFirst({
+            where: {
+              questionId: answer.questionId,
+              competitionId: answer.competitionId,
+              id: { not: answer.id }, // Not this answer
+              isCorrect: true,
+              reviewed: true,
+            },
+          });
+
+          if (!otherCorrectAnswer) {
+            console.log(
+              `Awarding trophy ${usage.trophyId} to user ${user.username} - first correct answer for this usage`
+            );
+
+            const trophyWin = await db.trophyWin.create({
+              data: {
+                userId: user.id,
+                trophyId: usage.trophyId,
+                source: "question",
+                sourceId: usage.id,
+              },
+              include: {
+                trophy: true,
+              },
+            });
+
+            // Broadcast trophy win
+            if (usage.competition.room) {
+              console.log(
+                `Broadcasting trophy:won to room ${usage.competition.room.id}`
+              );
+              broadcastToRoom(usage.competition.room.id, {
+                type: "trophy:won",
+                data: {
+                  userId: user.id,
+                  username: user.username,
+                  trophy: trophyWin.trophy,
+                  roomId: usage.competition.room.id,
+                },
+              });
+            }
+          } else {
+            console.log(
+              `Trophy not awarded - another user already got it for this usage (${otherCorrectAnswer.userId})`
+            );
+          }
+        }
 
         // Broadcast score update
         if (usage && usage.competition.room) {

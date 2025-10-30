@@ -1,11 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { broadcast } from "@/lib/websocket";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     // In dev mode, skip admin check
+    const body = await request.json().catch(() => ({}));
+    const { trophyId } = body;
+
+    console.log("=== ENABLE BUTTONS API ===");
+    console.log("Trophy ID:", trophyId);
+    console.log("==========================");
 
     // Find active round
     const activeRound = await db.round.findFirst({
@@ -23,13 +29,24 @@ export async function POST() {
       );
     }
 
-    // Enable buttons
+    // Enable buttons with optional trophy
     const updatedRound = await db.round.update({
       where: { id: activeRound.id },
-      data: { buttonsEnabled: true },
+      data: {
+        buttonsEnabled: true,
+        trophyId: trophyId || null, // Set trophy when enabling buttons
+      },
+      include: {
+        trophy: true, // Include trophy information in broadcast
+      },
     });
 
-    broadcast("buttons:enabled", updatedRound);
+    console.log(
+      "Round updated with trophy:",
+      updatedRound.trophy?.name || "none"
+    );
+
+    broadcast("buttons:enabled", { round: updatedRound });
 
     return NextResponse.json({ round: updatedRound });
   } catch (error) {

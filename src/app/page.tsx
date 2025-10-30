@@ -5,6 +5,9 @@ import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import AvatarPicker from '@/components/AvatarPicker'
 import BigBuzzerButton from '@/components/BigBuzzerButton'
+import TrophyDisplay from '@/components/TrophyDisplay'
+import TrophyAnimation from '@/components/TrophyAnimation'
+import Toast from '@/components/Toast'
 
 interface UserProfile {
   id: string
@@ -19,6 +22,17 @@ interface RoundStatus {
   startedAt: string | null
   endedAt: string | null
   winnerUserId?: string | null
+  trophyId?: string | null
+}
+
+interface TrophyWin {
+  id: string
+  wonAt: string
+  trophy: {
+    id: string
+    name: string
+    imageKey: string
+  }
 }
 
 export default function UserPage() {
@@ -30,6 +44,9 @@ export default function UserPage() {
   const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(true)
   const [pressing, setPressing] = useState(false)
+  const [trophyWins, setTrophyWins] = useState<TrophyWin[]>([])
+  const [showTrophyAnimation, setShowTrophyAnimation] = useState(false)
+  const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string } | null>(null)
 
   // SSE connection
   useEffect(() => {
@@ -39,15 +56,34 @@ export default function UserPage() {
       const data = JSON.parse(event.data)
       
       switch (event.type) {
+        case 'round:started':
+          console.log('Round started event received:', data)
+          setRoundStatus(data)
+          break
         case 'round:update':
+          console.log('Round update event received:', data)
           setRoundStatus(data)
           break
         case 'buttons:enabled':
         case 'buttons:disabled':
+          console.log('Buttons toggled event received:', data)
           setRoundStatus(data.round)
           break
         case 'scores:updated':
           fetchProfile()
+          break
+        case 'trophy:won':
+          console.log('Trophy won event received:', data)
+          console.log('Current profile:', profile)
+          // Check if this user won the trophy
+          if (profile && data.userId === profile.id) {
+            console.log('This user won the trophy!')
+            setWonTrophy({
+              name: data.trophy.name,
+              imageKey: data.trophy.imageKey
+            })
+            setShowTrophyAnimation(true)
+          }
           break
       }
     }
@@ -57,7 +93,7 @@ export default function UserPage() {
     }
 
     return () => eventSource.close()
-  }, [])
+  }, [profile])
 
   const fetchProfile = async () => {
     if (!user) return
@@ -77,17 +113,30 @@ export default function UserPage() {
     }
   }
 
+  const fetchTrophyWins = async () => {
+    if (!profile) return
+    
+    try {
+      const response = await fetch(`/api/trophies?userId=${profile.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        setTrophyWins(data.trophyWins || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch trophy wins:', error)
+    }
+  }
+
   const fetchRoundStatus = async () => {
     try {
-      const response = await fetch('/api/competition')
+      const response = await fetch('/api/round/current')
       const data = await response.json()
       
-      if (data.competitions.length > 0) {
-        const activeCompetition = data.competitions.find((c: any) => c.status === 'ACTIVE')
-        if (activeCompetition && activeCompetition.rounds.length > 0) {
-          const latestRound = activeCompetition.rounds[0]
-          setRoundStatus(latestRound)
-        }
+      console.log('Current round data:', data)
+      
+      if (data.round) {
+        console.log('Setting round status with trophy:', data.round)
+        setRoundStatus(data.round)
       }
     } catch (error) {
       console.error('Failed to fetch round status:', error)
@@ -101,6 +150,13 @@ export default function UserPage() {
       setLoading(false)
     }
   }, [isLoaded, user])
+
+  useEffect(() => {
+    if (profile) {
+      fetchTrophyWins()
+      fetchRoundStatus() // Also refresh round status when profile loads
+    }
+  }, [profile])
 
   const handleSetup = async () => {
     if (!username || !selectedAvatar) return
@@ -210,7 +266,46 @@ export default function UserPage() {
   // Main user interface
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toast />
+      {/* Trophy Animation */}
+      {showTrophyAnimation && wonTrophy && (
+        <TrophyAnimation
+          trophyImageKey={wonTrophy.imageKey}
+          trophyName={wonTrophy.name}
+          onComplete={() => {
+            setShowTrophyAnimation(false)
+            setWonTrophy(null)
+            fetchTrophyWins()
+          }}
+        />
+      )}
+
       <div className="container mx-auto px-4 py-8">
+        {/* Won Trophies */}
+        {trophyWins.length > 0 && (
+          <div className="mb-6 p-4 bg-white rounded-lg shadow">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">🏆 Dina Trofér</h3>
+            <div className="flex flex-wrap gap-3">
+              {trophyWins.map((win) => (
+                <div
+                  key={win.id}
+                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg border-2 border-yellow-300"
+                  title={`${win.trophy.name} - Vunnen ${new Date(win.wonAt).toLocaleDateString()}`}
+                >
+                  <img
+                    src={`/trophys/${win.trophy.imageKey}`}
+                    alt={win.trophy.name}
+                    className="h-[22px] w-auto object-contain"
+                  />
+                  <span className="text-xs font-medium text-gray-700">
+                    {win.trophy.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
@@ -220,6 +315,25 @@ export default function UserPage() {
             Your Score: <span className="font-bold text-blue-600">{profile.score}</span>
           </p>
         </div>
+
+        {/* Trophy Display */}
+        {roundStatus?.trophyId && (
+          <div className="max-w-md mx-auto mb-8">
+            <TrophyDisplay isWrapped={true} />
+            <p className="text-center text-sm mt-2 text-gray-600">
+              Debug: Trophy ID = {roundStatus.trophyId}
+            </p>
+          </div>
+        )}
+        
+        {/* Debug info */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="max-w-md mx-auto mb-4 p-2 bg-gray-100 text-xs">
+            <p>Round Status: {roundStatus ? 'Active' : 'None'}</p>
+            <p>Trophy ID: {roundStatus?.trophyId || 'None'}</p>
+            <p>Buttons: {roundStatus?.buttonsEnabled ? 'Enabled' : 'Disabled'}</p>
+          </div>
+        )}
 
         {/* Status */}
         <div className="text-center mb-8">

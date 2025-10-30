@@ -7,6 +7,9 @@ import RoomJoin from '@/components/RoomJoin'
 import QuestionDisplay from '@/components/QuestionDisplay'
 import CategoryGameDisplay from '@/components/CategoryGameDisplay'
 import ChatMessenger from '@/components/ChatMessenger'
+import TrophyDisplay from '@/components/TrophyDisplay'
+import TrophyAnimation from '@/components/TrophyAnimation'
+import Toast from '@/components/Toast'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -41,6 +44,7 @@ interface RoundStatus {
   hasTimer?: boolean
   timerDuration?: number | null
   timerEndsAt?: string | null
+  trophyId?: string | null
 }
 
 export default function DevUserPage() {
@@ -59,6 +63,7 @@ export default function DevUserPage() {
     points: number
     scoringType: 'FIRST_ONLY' | 'DESCENDING' | 'ALL_EQUAL'
     competitionId?: string
+    trophy?: { id: string; name: string; imageKey: string } | null
   } | null>(null)
   
   // Theme context
@@ -88,6 +93,10 @@ export default function DevUserPage() {
   const [loading, setLoading] = useState(true)
   const [pressing, setPressing] = useState(false)
   const [showRoomJoin, setShowRoomJoin] = useState(false)
+  const [showTrophyAnimation, setShowTrophyAnimation] = useState(false)
+  const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string } | null>(null)
+  const [trophyWins, setTrophyWins] = useState<Array<{ id: string; trophy: { name: string; imageKey: string }; wonAt: string }>>([])
+  const [trophiesAccordionOpen, setTrophiesAccordionOpen] = useState(true) // Default to open
 
   // Custom fetch wrapper that adds userId header
   const fetchWithUserId = useCallback(async (url: string, options: RequestInit = {}) => {
@@ -201,10 +210,20 @@ export default function DevUserPage() {
             break
           case 'buttons:enabled':
           case 'buttons:disabled':
-            console.log('WebSocket: Buttons event received')
+            console.log('WebSocket: Buttons event received (wrapped)')
+            console.log('Buttons enabled:', actualMessage.data?.round?.buttonsEnabled)
             // Update round status directly from WebSocket message
             updateRoundFromMessage(actualMessage.data)
-            // Clear timer when buttons are disabled
+            // Clear timer and press state when buttons are disabled
+            if (actualMessage.type === 'buttons:disabled') {
+              console.log('Buttons disabled - clearing press state and timer')
+              setMyPressTimerExpiresAt(null)
+              setUserPress(null)
+            }
+            break
+          case 'presses:cleared':
+            console.log('WebSocket: Presses cleared event received')
+            setUserPress(null)
             setMyPressTimerExpiresAt(null)
             break
           case 'round:ended':
@@ -240,14 +259,32 @@ export default function DevUserPage() {
             break
           case 'question:sent':
             console.log('WebSocket: Question sent event received')
+            console.log('WebSocket: Trophy data:', actualMessage.data?.trophy)
             setCurrentQuestion(actualMessage.data?.question ? {
               ...actualMessage.data.question,
-              competitionId: actualMessage.data.competitionId
+              competitionId: actualMessage.data.competitionId,
+              trophy: actualMessage.data.trophy || null
             } : null)
             break
           case 'question:completed':
             console.log('WebSocket: Question completed event received')
             setCurrentQuestion(null)
+            break
+          case 'trophy:won':
+            console.log('WebSocket: Trophy won event received (wrapped)', actualMessage.data)
+            console.log('Profile ID:', profile?.id)
+            console.log('Winner User ID:', actualMessage.data?.userId)
+            // Check if this user won the trophy
+            if (profile && actualMessage.data?.userId === profile.id) {
+              console.log('This user won the trophy!')
+              setWonTrophy({
+                name: actualMessage.data.trophy.name,
+                imageKey: actualMessage.data.trophy.imageKey
+              })
+              setShowTrophyAnimation(true)
+            } else {
+              console.log('Trophy won by someone else or profile not loaded')
+            }
             break
           case 'theme:changed':
             console.log('WebSocket: Theme changed event received', actualMessage.data?.theme)
@@ -296,9 +333,19 @@ export default function DevUserPage() {
           case 'buttons:enabled':
           case 'buttons:disabled':
             console.log('WebSocket: Buttons event received')
+            console.log('Buttons enabled:', lastMessage.data?.round?.buttonsEnabled)
             // Update round status directly from WebSocket message
             updateRoundFromMessage(lastMessage.data)
-            // Clear timer when buttons are disabled
+            // Clear timer and press state when buttons are disabled
+            if (lastMessage.type === 'buttons:disabled') {
+              console.log('Buttons disabled - clearing press state and timer')
+              setMyPressTimerExpiresAt(null)
+              setUserPress(null)
+            }
+            break
+          case 'presses:cleared':
+            console.log('WebSocket: Presses cleared event received (direct)')
+            setUserPress(null)
             setMyPressTimerExpiresAt(null)
             break
           case 'round:ended':
@@ -331,14 +378,37 @@ export default function DevUserPage() {
             break
           case 'question:sent':
             console.log('WebSocket: Question sent event received (direct)')
-            setCurrentQuestion(lastMessage.data?.question ? {
+            console.log('WebSocket: Trophy data (direct):', lastMessage.data?.trophy)
+            const questionWithTrophy = lastMessage.data?.question ? {
               ...lastMessage.data.question,
-              competitionId: lastMessage.data.competitionId
-            } : null)
+              competitionId: lastMessage.data.competitionId,
+              trophy: lastMessage.data.trophy || null
+            } : null
+            console.log('Setting currentQuestion with trophy:', questionWithTrophy)
+            setCurrentQuestion(questionWithTrophy)
             break
           case 'question:completed':
             console.log('WebSocket: Question completed event received (direct)')
             setCurrentQuestion(null)
+            break
+          case 'trophy:won':
+            console.log('WebSocket: Trophy won event received (direct)', lastMessage.data)
+            console.log('Profile ID:', profile?.id)
+            console.log('Winner User ID:', lastMessage.data?.userId)
+            // Check if this user won the trophy
+            if (profile && lastMessage.data?.userId === profile.id) {
+              console.log('This user won the trophy!')
+              console.log('Trophy data:', lastMessage.data.trophy)
+              console.log('Setting wonTrophy state...')
+              setWonTrophy({
+                name: lastMessage.data.trophy.name,
+                imageKey: lastMessage.data.trophy.imageKey
+              })
+              console.log('Setting showTrophyAnimation to true...')
+              setShowTrophyAnimation(true)
+            } else {
+              console.log('Trophy won by someone else or profile not loaded')
+            }
             break
           case 'theme:changed':
             console.log('WebSocket: Theme changed event received (direct)', lastMessage.data?.theme)
@@ -405,11 +475,35 @@ export default function DevUserPage() {
     }
   }
 
+  // Fetch trophy wins
+  const fetchTrophyWins = useCallback(async () => {
+    if (!profile) return
+    
+    try {
+      const response = await fetchWithUserId(`/api/trophies?userId=${profile.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Trophy wins API response:', data)
+        console.log('Trophy wins loaded:', data.trophyWins)
+        setTrophyWins(data.trophyWins || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch trophy wins:', error)
+    }
+  }, [profile, fetchWithUserId])
+
   useEffect(() => {
     fetchProfile()
     fetchUserRoom()
     setLoading(false)
   }, [fetchProfile, fetchUserRoom])
+
+  // Fetch trophy wins when profile loads
+  useEffect(() => {
+    if (profile) {
+      fetchTrophyWins()
+    }
+  }, [profile, fetchTrophyWins])
 
   // Fetch round status when room changes
   useEffect(() => {
@@ -667,7 +761,64 @@ export default function DevUserPage() {
   // Main user interface
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+      <Toast />
+      {/* Trophy Animation */}
+      {/* Trophy Win Animation */}
+      {showTrophyAnimation && wonTrophy && (
+        <>
+          <div style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            width: '100%', 
+            height: '100%', 
+            zIndex: 9999 
+          }}>
+            <TrophyAnimation
+              trophyImageKey={wonTrophy.imageKey}
+              trophyName={wonTrophy.name}
+              onComplete={() => {
+                console.log('Trophy animation completed!')
+                setShowTrophyAnimation(false)
+                setWonTrophy(null)
+                fetchTrophyWins()
+              }}
+            />
+          </div>
+        </>
+      )}
+
       <div className="container mx-auto px-4 py-8">
+        {/* Won Trophies Accordion */}
+        {trophyWins.length > 0 && (
+          <div className="mb-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)' }}>
+            <button
+              onClick={() => setTrophiesAccordionOpen(!trophiesAccordionOpen)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-opacity-80 transition-colors"
+            >
+              <h3 className="text-sm font-semibold">🏆 My Trophys</h3>
+              <span className="text-sm opacity-60 transition-transform" style={{ transform: trophiesAccordionOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                ⌄
+              </span>
+            </button>
+            {trophiesAccordionOpen && (
+              <div className="px-4 pb-4">
+                <div className="flex flex-wrap gap-3">
+                  {trophyWins.map((win) => (
+                    <img
+                      key={win.id}
+                      src={`/trophys/${win.trophy.imageKey}`}
+                      alt={win.trophy.name}
+                      className="h-[22px] w-auto object-contain"
+                      title={`${win.trophy.name} - Vunnen ${new Date(win.wonAt).toLocaleDateString()}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">
@@ -717,6 +868,7 @@ export default function DevUserPage() {
             </div>
           )}
         </div>
+
 
         {/* Buzzer Button */}
         <div className="flex justify-center mb-8">

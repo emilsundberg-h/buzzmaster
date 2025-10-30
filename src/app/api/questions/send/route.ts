@@ -5,7 +5,17 @@ import { broadcastToRoom } from "@/lib/websocket";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { questionId, competitionId } = body;
+    const { questionId, competitionId, trophyId } = body;
+
+    console.log("========================================");
+    console.log("=== SENDING QUESTION (API) ===");
+    console.log("Question ID:", questionId);
+    console.log("Trophy ID from body:", trophyId);
+    console.log("Trophy ID type:", typeof trophyId);
+    console.log("Trophy ID is null?", trophyId === null);
+    console.log("Trophy ID is undefined?", trophyId === undefined);
+    console.log("Trophy ID || null:", trophyId || null);
+    console.log("========================================");
 
     if (!questionId || !competitionId) {
       return NextResponse.json(
@@ -54,10 +64,15 @@ export async function POST(request: NextRequest) {
         competitionId,
         status: "ACTIVE",
         sentAt: new Date(),
+        trophyId: trophyId || null,
       },
       update: {
         status: "ACTIVE",
         sentAt: new Date(),
+        trophyId: trophyId || null,
+      },
+      include: {
+        trophy: true,
       },
     });
 
@@ -82,6 +97,7 @@ export async function POST(request: NextRequest) {
             scoringType: questionData.scoringType,
           },
           competitionId,
+          trophy: usage.trophy, // Include trophy info if exists
         },
       });
     }

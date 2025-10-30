@@ -36,6 +36,9 @@ export async function GET(request: NextRequest) {
                   questionId: q.id,
                   competitionId,
                 },
+                orderBy: {
+                  answeredAt: "asc", // Sort by who answered first
+                },
                 include: {
                   // Try to get user info, but don't fail if user doesn't exist
                 },
@@ -57,6 +60,7 @@ export async function GET(request: NextRequest) {
                 ...answer,
                 username: user?.username || "Unknown",
                 avatarKey: user?.avatarKey || "avatar-1",
+                answeredAt: answer.answeredAt, // Include timestamp for display
               };
             })
           );

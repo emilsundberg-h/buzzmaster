@@ -41,6 +41,15 @@ export async function GET() {
     const competitions = await db.competition.findMany({
       orderBy: { createdAt: "desc" },
       take: 10, // Limit to recent competitions
+      include: {
+        rounds: {
+          orderBy: { startedAt: "desc" },
+          take: 1, // Only get the latest round
+          include: {
+            trophy: true, // Include trophy information
+          },
+        },
+      },
     });
 
     return NextResponse.json({ competitions });

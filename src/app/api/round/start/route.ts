@@ -9,10 +9,11 @@ export async function POST(request: Request) {
 
     // Parse request body
     const body = await request.json().catch(() => ({}));
-    const { timerEnabled, timerDuration } = body;
+    const { timerEnabled, timerDuration, trophyId } = body;
     console.log("=== ROUND START API ===");
     console.log("timerEnabled:", timerEnabled);
     console.log("timerDuration:", timerDuration);
+    console.log("trophyId:", trophyId);
 
     // Find active competition
     const activeCompetition = await db.competition.findFirst({
@@ -48,6 +49,10 @@ export async function POST(request: Request) {
         hasTimer: hasTimer,
         timerDuration: timerDuration || null,
         timerEndsAt: timerEndsAt,
+        trophyId: trophyId || null,
+      },
+      include: {
+        trophy: true, // Include trophy information in broadcast
       },
     });
 
@@ -58,6 +63,7 @@ export async function POST(request: Request) {
       endedAt: round.endedAt,
       buttonsEnabled: round.buttonsEnabled,
       competitionId: round.competitionId,
+      trophyId: round.trophyId,
     });
     broadcast("round:started", round);
 

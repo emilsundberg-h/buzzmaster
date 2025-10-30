@@ -14,21 +14,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the question with all answers
+    // Get question usage to find competition and trophy
+    // Find the ACTIVE usage to ensure we get the current one, not an old one
+    const usage = await db.questionUsage.findFirst({
+      where: {
+        questionId,
+        status: "ACTIVE", // Only get the active usage
+      },
+      include: {
+        competition: {
+          include: {
+            room: true,
+          },
+        },
+        trophy: true,
+      },
+      orderBy: {
+        sentAt: "desc", // Get the most recent if there are multiple active
+      },
+    });
+
+    console.log(`Evaluating question ${questionId}:`);
+    console.log(`- usage found: ${!!usage}`);
+    console.log(`- usage.trophyId: ${usage?.trophyId}`);
+    console.log(`- trophy exists: ${!!usage?.trophy}`);
+
+    if (!usage) {
+      return NextResponse.json(
+        { error: "Question usage not found" },
+        { status: 404 }
+      );
+    }
+
+    // Get the question with answers ordered asc
     const question = await db.question.findUnique({
       where: { id: questionId },
       include: {
         answers: {
-          include: {
-            question: true,
-          },
           orderBy: {
-            answeredAt: "asc", // Order by when they answered (for FIRST_ONLY and DESCENDING)
-          },
-        },
-        competition: {
-          include: {
-            room: true,
+            answeredAt: "asc",
           },
         },
       },
@@ -43,7 +67,11 @@ export async function POST(request: NextRequest) {
 
     // For multiple choice, evaluate automatically based on isCorrect
     if (question.type === "MULTIPLE_CHOICE") {
-      const correctAnswers = question.answers.filter((a) => a.isCorrect);
+      // Only consider answers from the current competition usage
+      const answersForCompetition = question.answers.filter(
+        (a) => a.competitionId === usage.competitionId
+      );
+      const correctAnswers = answersForCompetition.filter((a) => a.isCorrect);
 
       // Apply scoring based on scoringType
       let updatedAnswers = [];
@@ -88,6 +116,48 @@ export async function POST(request: NextRequest) {
                   },
                 },
               });
+            }
+
+            // Award trophy if this question has one (only to earliest correct answer)
+            if (usage.trophyId && user) {
+              // Avoid duplicate awards for repeated evaluations
+              const existingWin = await db.trophyWin.findFirst({
+                where: {
+                  source: "question",
+                  sourceId: usage.id,
+                  trophyId: usage.trophyId,
+                },
+              });
+
+              if (!existingWin) {
+                const trophyWin = await db.trophyWin.create({
+                  data: {
+                    userId: user.id,
+                    trophyId: usage.trophyId,
+                    source: "question",
+                    sourceId: usage.id,
+                  },
+                  include: {
+                    trophy: true,
+                  },
+                });
+
+                // Broadcast trophy win
+                if (usage.competition.room) {
+                  console.log(
+                    `Broadcasting trophy:won to room ${usage.competition.room.id} for user ${user.username}`
+                  );
+                  broadcastToRoom(usage.competition.room.id, {
+                    type: "trophy:won",
+                    data: {
+                      userId: user.id,
+                      username: user.username,
+                      trophy: trophyWin.trophy,
+                      roomId: usage.competition.room.id,
+                    },
+                  });
+                }
+              }
             }
           }
           break;
@@ -135,11 +205,53 @@ export async function POST(request: NextRequest) {
                 },
               });
             }
+
+            // Award trophy to earliest correct answer if trophy exists
+            if (i === 0 && usage.trophyId && user) {
+              const existingWin = await db.trophyWin.findFirst({
+                where: {
+                  source: "question",
+                  sourceId: usage.id,
+                  trophyId: usage.trophyId,
+                },
+              });
+
+              if (!existingWin) {
+                const trophyWin = await db.trophyWin.create({
+                  data: {
+                    userId: user.id,
+                    trophyId: usage.trophyId,
+                    source: "question",
+                    sourceId: usage.id,
+                  },
+                  include: {
+                    trophy: true,
+                  },
+                });
+
+                // Broadcast trophy win
+                if (usage.competition.room) {
+                  console.log(
+                    `Broadcasting trophy:won to room ${usage.competition.room.id} for user ${user.username}`
+                  );
+                  broadcastToRoom(usage.competition.room.id, {
+                    type: "trophy:won",
+                    data: {
+                      userId: user.id,
+                      username: user.username,
+                      trophy: trophyWin.trophy,
+                      roomId: usage.competition.room.id,
+                    },
+                  });
+                }
+              }
+            }
           }
           break;
 
         case "ALL_EQUAL":
           // All correct answers get the same points
+          let isFirstCorrect = true;
           for (const answer of correctAnswers) {
             const updated = await db.answer.update({
               where: { id: answer.id },
@@ -177,12 +289,62 @@ export async function POST(request: NextRequest) {
                 },
               });
             }
+
+            // Award trophy to earliest correct answer if trophy exists (even in ALL_EQUAL mode)
+            if (isFirstCorrect && usage.trophyId && user) {
+              const existingWin = await db.trophyWin.findFirst({
+                where: {
+                  source: "question",
+                  sourceId: usage.id,
+                  trophyId: usage.trophyId,
+                },
+              });
+
+              if (!existingWin) {
+                const trophyWin = await db.trophyWin.create({
+                  data: {
+                    userId: user.id,
+                    trophyId: usage.trophyId,
+                    source: "question",
+                    sourceId: usage.id,
+                  },
+                  include: {
+                    trophy: true,
+                  },
+                });
+
+                console.log(
+                  `Trophy awarded to user ${user.username} (${user.id})`
+                );
+
+                // Broadcast trophy win
+                if (usage.competition.room) {
+                  console.log(
+                    `Broadcasting trophy:won event to room ${usage.competition.room.id}`
+                  );
+                  broadcastToRoom(usage.competition.room.id, {
+                    type: "trophy:won",
+                    data: {
+                      userId: user.id,
+                      username: user.username,
+                      trophy: trophyWin.trophy,
+                      roomId: usage.competition.room.id,
+                    },
+                  });
+                }
+                isFirstCorrect = false; // Only first person gets trophy
+              } else {
+                isFirstCorrect = false; // Trophy already awarded for this usage
+              }
+            }
           }
           break;
       }
 
       // Mark all incorrect answers as reviewed with 0 points
-      const incorrectAnswers = question.answers.filter((a) => !a.isCorrect);
+      const incorrectAnswers = answersForCompetition.filter(
+        (a) => !a.isCorrect
+      );
       for (const answer of incorrectAnswers) {
         await db.answer.update({
           where: { id: answer.id },
@@ -195,9 +357,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Mark question as completed
-    await db.question.update({
-      where: { id: questionId },
+    // Mark question usage as completed
+    await db.questionUsage.update({
+      where: {
+        questionId_competitionId: {
+          questionId,
+          competitionId: usage.competitionId,
+        },
+      },
       data: {
         status: "COMPLETED",
         completedAt: new Date(),
@@ -205,8 +372,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Broadcast question completed and score updates
-    if (question.competition.room) {
-      broadcastToRoom(question.competition.room.id, {
+    if (usage.competition.room) {
+      broadcastToRoom(usage.competition.room.id, {
         type: "question:completed",
         data: {
           questionId,
@@ -214,7 +381,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Also broadcast score updates
-      broadcastToRoom(question.competition.room.id, {
+      broadcastToRoom(usage.competition.room.id, {
         type: "scores:updated",
         data: {},
       });

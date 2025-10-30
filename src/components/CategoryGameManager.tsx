@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Play, Pause, SkipForward, Trophy } from 'lucide-react'
+import TrophyPicker from './TrophyPicker'
 
 interface CategoryGameManagerProps {
   competitionId: string
@@ -34,6 +35,7 @@ export default function CategoryGameManager({
   const [categoryName, setCategoryName] = useState('')
   const [timePerPlayer, setTimePerPlayer] = useState(30)
   const [winnerPoints, setWinnerPoints] = useState(5)
+  const [selectedTrophyId, setSelectedTrophyId] = useState<string | null>(null)
   
   const [currentGame, setCurrentGame] = useState<CategoryGame | null>(null)
   const [timeRemaining, setTimeRemaining] = useState(0)
@@ -131,6 +133,7 @@ export default function CategoryGameManager({
           categoryName,
           timePerPlayer,
           winnerPoints,
+          trophyId: selectedTrophyId,
         }),
       })
 
@@ -138,6 +141,7 @@ export default function CategoryGameManager({
       setCategoryName('')
       setTimePerPlayer(30)
       setWinnerPoints(5)
+      setSelectedTrophyId(null)
     } catch (error) {
       console.error('Failed to start game:', error)
       alert('Kunde inte starta spelet')
@@ -258,11 +262,19 @@ export default function CategoryGameManager({
             />
           </div>
 
+          <div>
+            <TrophyPicker
+              selectedTrophyId={selectedTrophyId}
+              onSelect={setSelectedTrophyId}
+              label="Välj trofé (valfritt)"
+            />
+          </div>
+
           <button
             onClick={handleStartGame}
             className="w-full py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-bold"
           >
-            Starta Spelet
+            Starta Spelet {selectedTrophyId ? '🏆' : ''}
           </button>
         </div>
       )}

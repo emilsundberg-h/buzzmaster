@@ -118,7 +118,7 @@ export default function AdminPage() {
     }
   }, [isLoaded, user])
 
-  const handleStartRound = async (timerEnabled: boolean, timerDuration: number) => {
+  const handleStartRound = async (timerEnabled: boolean, timerDuration: number, trophyId: string | null = null) => {
     try {
       // First, get or create an admin room
       let roomId = null
@@ -174,7 +174,8 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           timerEnabled,
-          timerDuration
+          timerDuration,
+          trophyId
         })
       })
       
@@ -211,7 +212,7 @@ export default function AdminPage() {
       // If buttons are disabled but round has a winner, start a new round
       if (!currentRound.buttonsEnabled && currentRound.winnerUserId) {
         console.log('Buttons disabled with winner detected, starting new round')
-        await handleStartRound(false, 0) // Start new round without timer
+        await handleStartRound(false, 0, null) // Start new round without timer
       } else if (currentRound.buttonsEnabled) {
         // Disable buttons
         const response = await fetch('/api/round/disable-buttons', { method: 'POST' })

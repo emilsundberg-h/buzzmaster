@@ -23,11 +23,19 @@ export async function POST() {
       );
     }
 
-    // Disable buttons and clear all presses for this round
+    // Disable buttons, clear trophy, and prepare to clear presses
     const updatedRound = await db.round.update({
       where: { id: activeRound.id },
-      data: { buttonsEnabled: false },
+      data: {
+        buttonsEnabled: false,
+        trophyId: null, // Clear trophy when disabling buttons
+      },
+      include: {
+        trophy: true, // Include trophy information in broadcast (will be null now)
+      },
     });
+
+    console.log("Buttons disabled, trophy cleared");
 
     // Clear all presses for this round so users can press again when buttons are enabled
     await db.press.deleteMany({
@@ -36,7 +44,7 @@ export async function POST() {
 
     console.log(`Cleared all presses for round ${activeRound.id}`);
 
-    broadcast("buttons:disabled", updatedRound);
+    broadcast("buttons:disabled", { round: updatedRound });
     // Clear live press feed
     broadcast("presses:cleared", { roundId: activeRound.id });
 

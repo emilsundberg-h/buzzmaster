@@ -80,6 +80,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("======================");
+    console.log("ANSWER API - Question type:", question.type);
+    console.log("ANSWER API - Has trophy?", !!usage.trophyId);
+    console.log("======================");
+
     // For multiple choice, automatically check if correct
     let isCorrect = false;
     let pointsToAward = 0;
@@ -155,7 +160,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Award points to user if correct (for multiple choice)
+    console.log("=== CHECKING IF SHOULD AWARD POINTS ===");
+    console.log("Question type:", question.type);
+    console.log("Is correct:", isCorrect);
+    console.log("Points to award:", pointsToAward);
+    console.log(
+      "Condition met?",
+      question.type === "MULTIPLE_CHOICE" && isCorrect && pointsToAward > 0
+    );
+
     if (question.type === "MULTIPLE_CHOICE" && isCorrect && pointsToAward > 0) {
+      console.log("AWARDING POINTS TO USER:", userId, "Points:", pointsToAward);
       await db.user.update({
         where: { clerkId: userId },
         data: {
@@ -167,11 +182,14 @@ export async function POST(request: NextRequest) {
 
       // Broadcast score update
       if (usage.competition.room) {
+        console.log("BROADCASTING scores:updated");
         broadcastToRoom(usage.competition.room.id, {
           type: "scores:updated",
           data: {},
         });
       }
+    } else {
+      console.log("NOT awarding points (condition not met)");
     }
 
     // Create answer

@@ -66,6 +66,39 @@ export async function POST(request: NextRequest) {
             },
           },
         });
+
+        // Award trophy if this game has one
+        if (game.trophyId) {
+          console.log(
+            `Awarding trophy ${game.trophyId} to user ${user.username} for winning category game`
+          );
+
+          const trophyWin = await db.trophyWin.create({
+            data: {
+              userId: user.id,
+              trophyId: game.trophyId,
+              source: "category",
+              sourceId: gameId,
+            },
+            include: {
+              trophy: true,
+            },
+          });
+
+          // Broadcast trophy win
+          console.log(
+            `Broadcasting trophy:won to room ${game.competition.room.id} for user ${user.username}`
+          );
+          broadcastToRoom(game.competition.room.id, {
+            type: "trophy:won",
+            data: {
+              userId: user.id,
+              username: user.username,
+              trophy: trophyWin.trophy,
+              roomId: game.competition.room.id,
+            },
+          });
+        }
       }
 
       // Complete the game

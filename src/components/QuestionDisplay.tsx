@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import AnswerButton from './AnswerButton'
+import TrophyDisplay from './TrophyDisplay'
+import { showToast } from '@/components/Toast'
 
 interface QuestionDisplayProps {
   question: {
@@ -12,6 +14,7 @@ interface QuestionDisplayProps {
     options?: string[] | null
     points: number
     scoringType: 'FIRST_ONLY' | 'DESCENDING' | 'ALL_EQUAL'
+    trophy?: { id: string; name: string; imageKey: string } | null
   }
   avatarKey: string
   onSubmitAnswer: (answer: string) => Promise<void>
@@ -40,9 +43,11 @@ export default function QuestionDisplay({ question, avatarKey, onSubmitAnswer, o
     try {
       await onSubmitAnswer(finalAnswer)
       setSubmitted(true)
+      showToast('Ditt svar är inskickat!', 'success')
+      onClose()
     } catch (error) {
       console.error('Submit answer failed:', error)
-      alert('Kunde inte skicka svar')
+      showToast('Kunde inte skicka svaret. Försök igen.', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -61,27 +66,7 @@ export default function QuestionDisplay({ question, avatarKey, onSubmitAnswer, o
     }
   }
 
-  if (submitted) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="rounded-lg shadow-xl max-w-md w-full p-6" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
-          <div className="text-center">
-            <div className="text-6xl mb-4">✅</div>
-            <h3 className="text-2xl font-bold mb-2">Svar skickat!</h3>
-            <p className="text-gray-600 mb-4">
-              Ditt svar har registrerats och kommer att rättas.
-            </p>
-            <button
-              onClick={onClose}
-              className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
-            >
-              Stäng
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  if (submitted) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -98,6 +83,15 @@ export default function QuestionDisplay({ question, avatarKey, onSubmitAnswer, o
               </span>
             </div>
           </div>
+
+          {/* Trophy Display */}
+          {question.trophy && (
+            <div className="mb-6 text-center">
+              <p className="text-sm" style={{ color: 'var(--foreground)' }}>
+                🎁 Vinna denna omgång och få en trofe 🎁
+              </p>
+            </div>
+          )}
 
           {/* Scoring info */}
           <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">

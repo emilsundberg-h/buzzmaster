@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import TrophyPicker from './TrophyPicker'
 
 interface Question {
   id: string
@@ -13,6 +14,7 @@ interface Question {
   scoringType: 'FIRST_ONLY' | 'DESCENDING' | 'ALL_EQUAL'
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED'
   sentAt?: string | null
+  trophyId?: string | null
   answers?: Array<{
     id: string
     userId: string
@@ -29,7 +31,7 @@ interface Question {
 interface QuestionManagerProps {
   competitionId: string
   refreshTrigger?: number
-  onQuestionSent?: () => void
+  onQuestionSent?: (question: Question) => void
 }
 
 export default function QuestionManager({ competitionId, refreshTrigger, onQuestionSent }: QuestionManagerProps) {
@@ -48,9 +50,11 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
   const [correctAnswer, setCorrectAnswer] = useState('')
   const [points, setPoints] = useState(1)
   const [scoringType, setScoringType] = useState<'FIRST_ONLY' | 'DESCENDING' | 'ALL_EQUAL'>('ALL_EQUAL')
+  const [selectedTrophyId, setSelectedTrophyId] = useState<string | null>(null)
   
   // Selected question for viewing answers
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
+  const [sendTrophyId, setSendTrophyId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchQuestions()
@@ -206,18 +210,30 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
     }
   }
 
-  const handleSendQuestion = async (questionId: string) => {
+  const handleSendQuestion = async (questionId: string, trophyId: string | null) => {
     setLoading(true)
+    console.log('========================================')
+    console.log('=== SENDING QUESTION ===')
+    console.log('Question ID:', questionId)
+    console.log('Trophy ID:', trophyId)
+    console.log('sendTrophyId state:', sendTrophyId)
+    console.log('========================================')
     try {
+      // Find the question being sent
+      const questionToSend = questions.find(q => q.id === questionId)
+      
       const response = await fetch('/api/questions/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionId, competitionId })
+        body: JSON.stringify({ questionId, competitionId, trophyId })
       })
 
       if (response.ok) {
         fetchQuestions()
-        onQuestionSent?.()
+        if (questionToSend) {
+          onQuestionSent?.(questionToSend)
+        }
+        setSendTrophyId(null) // Reset trophy selection
       } else {
         const error = await response.json()
         alert(error.error || 'Kunde inte skicka fråga')
@@ -492,6 +508,15 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
         </div>
       )}
 
+      {/* Trophy Picker for Sending Questions */}
+      <div className="mb-4 p-4 border rounded-lg" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)' }}>
+        <TrophyPicker
+          selectedTrophyId={sendTrophyId}
+          onSelect={setSendTrophyId}
+          label="Välj trofé att skicka med nästa fråga (valfritt)"
+        />
+      </div>
+
       {/* Questions List */}
       <div className="space-y-3">
         {questions.length === 0 ? (
@@ -533,13 +558,21 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
 
                 <div className="flex flex-col gap-2">
                   {question.status === 'DRAFT' && (
-                    <button
-                      onClick={() => handleSendQuestion(question.id)}
-                      disabled={loading}
-                      className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300"
-                    >
-                      Skicka
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleSendQuestion(question.id, sendTrophyId)}
+                        disabled={loading}
+                        className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300"
+                      >
+                        Skicka {sendTrophyId ? '🏆' : ''}
+                      </button>
+                    </>
+                  )}
+                  
+                  {question.trophyId && (
+                    <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                      🏆 Trofé
+                    </span>
                   )}
                   
                   {question.status === 'ACTIVE' && (
@@ -600,60 +633,84 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
 
               <div className="space-y-3">
                 {selectedQuestion.answers && selectedQuestion.answers.length > 0 ? (
-                  selectedQuestion.answers.map((answer, idx) => (
-                    <div key={answer.id} className="border rounded-lg p-3">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-start gap-3 flex-1">
-                          {/* Avatar */}
-                          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                            <img
-                              src={`/avatars/${answer.avatarKey}.webp`}
-                              alt={answer.username}
-                              className="w-full h-full object-cover"
-                            />
+                  selectedQuestion.answers.map((answer, idx) => {
+                    const ordinals = ['1:a', '2:a', '3:e', '4:e', '5:e', '6:e', '7:e', '8:e', '9:e', '10:e'];
+                    const ordinal = ordinals[idx] || `${idx + 1}:e`;
+                    const isFirst = idx === 0;
+                    const answerTime = answer.answeredAt ? new Date(answer.answeredAt).toLocaleTimeString('sv-SE') : '';
+                    
+                    return (
+                      <div 
+                        key={answer.id} 
+                        className={`border-2 rounded-lg p-3 ${isFirst ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-start gap-3 flex-1">
+                            {/* Order badge */}
+                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                              isFirst ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-200 text-gray-700'
+                            }`}>
+                              {ordinal}
+                            </div>
+                            
+                            {/* Avatar */}
+                            <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                              <img
+                                src={`/avatars/${answer.avatarKey}.webp`}
+                                alt={answer.username}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            
+                            {/* Content */}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-bold">{answer.username}</p>
+                                {isFirst && (
+                                  <span className="px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-semibold rounded">
+                                    🥇 FÖRST ATT SVARA
+                                  </span>
+                                )}
+                                <span className="text-xs text-gray-500">
+                                  {answerTime}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-gray-800">{answer.text}</p>
+                            </div>
                           </div>
-                          
-                          {/* Content */}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-bold">{answer.username}</p>
-                              <span className="text-xs text-gray-500">Svar #{idx + 1}</span>
-                            </div>
-                            <p className="mt-1 text-gray-800">{answer.text}</p>
+                          <div className="text-right">
+                            {answer.reviewed ? (
+                              <div>
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                  answer.isCorrect ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700'
+                                }`}>
+                                  {answer.isCorrect ? 'Rätt' : 'Fel'}
+                                </span>
+                                <p className="text-sm mt-1">{answer.points} poäng</p>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleGradeAnswer(answer.id, true)}
+                                  disabled={loading}
+                                  className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:bg-gray-300"
+                                >
+                                  ✓ Rätt
+                                </button>
+                                <button
+                                  onClick={() => handleGradeAnswer(answer.id, false)}
+                                  disabled={loading}
+                                  className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:bg-gray-300"
+                                >
+                                  ✗ Fel
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <div className="text-right">
-                          {answer.reviewed ? (
-                            <div>
-                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                answer.isCorrect ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700'
-                              }`}>
-                                {answer.isCorrect ? 'Rätt' : 'Fel'}
-                              </span>
-                              <p className="text-sm mt-1">{answer.points} poäng</p>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleGradeAnswer(answer.id, true)}
-                                disabled={loading}
-                                className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:bg-gray-300"
-                              >
-                                ✓ Rätt
-                              </button>
-                              <button
-                                onClick={() => handleGradeAnswer(answer.id, false)}
-                                disabled={loading}
-                                className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:bg-gray-300"
-                              >
-                                ✗ Fel
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-gray-500 text-center py-4">Inga svar än</p>
                 )}

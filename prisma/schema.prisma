@@ -21,6 +21,7 @@ model User {
   messageReads MessageRead[] // Messages this user has read
   sentPokes Poke[] @relation("SentPokes")
   receivedPokes Poke[] @relation("ReceivedPokes")
+  trophyWins TrophyWin[]
 }
 
 model Room {
@@ -76,6 +77,8 @@ model Round {
   hasTimer       Boolean  @default(false)
   timerDuration  Int?     // Duration in seconds
   timerEndsAt    DateTime? // When the timer will end
+  trophyId       String?   // Trophy for this round
+  trophy         Trophy?   @relation(fields: [trophyId], references: [id])
   presses        Press[]
 }
 
@@ -122,9 +125,11 @@ model QuestionUsage {
   sentAt         DateTime?      // When the question was sent to users
   completedAt    DateTime?      // When the question was completed/graded
   createdAt      DateTime       @default(now())
+  trophyId       String?        // Trophy for this question
   
   question       Question       @relation(fields: [questionId], references: [id])
   competition    Competition    @relation(fields: [competitionId], references: [id])
+  trophy         Trophy?        @relation(fields: [trophyId], references: [id])
   
   @@unique([questionId, competitionId])
 }
@@ -233,12 +238,44 @@ model CategoryGame {
   createdAt       DateTime         @default(now())
   startedAt       DateTime?
   completedAt     DateTime?
+  trophyId        String?          // Trophy for this game
   
   competition     Competition      @relation(fields: [competitionId], references: [id])
+  trophy          Trophy?          @relation(fields: [trophyId], references: [id])
 }
 
 enum CategoryGameStatus {
   ACTIVE
   PAUSED
   COMPLETED
+}
+
+// Trophy
+model Trophy {
+  id          String   @id @default(cuid())
+  name        String   // Display name of trophy
+  imageKey    String   // Filename in /public/trophys/
+  description String?  // Optional description
+  createdAt   DateTime @default(now())
+  
+  rounds      Round[]
+  questions   QuestionUsage[]
+  categoryGames CategoryGame[]
+  wins        TrophyWin[]
+}
+
+// Trophy Wins - tracks when users win trophies
+model TrophyWin {
+  id          String   @id @default(cuid())
+  userId      String
+  trophyId    String
+  wonAt       DateTime @default(now())
+  source      String   // "round", "question", or "category"
+  sourceId    String   // ID of the round, question, or category game
+  
+  user        User     @relation(fields: [userId], references: [id])
+  trophy      Trophy   @relation(fields: [trophyId], references: [id])
+  
+  @@index([userId])
+  @@index([trophyId])
 }

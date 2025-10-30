@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import TrophyPicker from './TrophyPicker'
 
 interface AdminControlsProps {
   onStartRound: (timerEnabled: boolean, timerDuration: number) => void
-  onToggleButtons: () => void
+  onToggleButtons: (trophyId: string | null) => void
   onEndRound: () => void
   onUpdateScore: (userId: string, change: number) => void
   users: Array<{
@@ -19,6 +20,7 @@ interface AdminControlsProps {
     startedAt: string | null
     endedAt: string | null
     winnerUserId?: string | null
+    trophyId?: string | null
   }
   recentPresses: Array<{
     id: string
@@ -42,6 +44,7 @@ export default function AdminControls({
   const [scoreChanges, setScoreChanges] = useState<Record<string, number>>({})
   const [timerDisabled, setTimerDisabled] = useState(false) // Default timer is ON
   const [timerDuration, setTimerDuration] = useState(10) // Default 10 seconds
+  const [buttonsTrophyId, setButtonsTrophyId] = useState<string | null>(null)
 
   const handleScoreChange = (userId: string, change: number) => {
     setScoreChanges(prev => ({
@@ -97,11 +100,25 @@ export default function AdminControls({
               </div>
             )}
           </div>
+
+
+          {/* Trophy Picker - Before Enabling Buttons */}
+          {isRoundActive && !currentRound?.buttonsEnabled && (
+            <div className="p-4 rounded border-2" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--primary)' }}>
+              <TrophyPicker
+                selectedTrophyId={buttonsTrophyId}
+                onSelect={setButtonsTrophyId}
+                label="Välj trofé innan du enablerar knapparna (valfritt)"
+              />
+            </div>
+          )}
           
           <div className="flex flex-wrap gap-4">
             {!isRoundActive ? (
               <button
-                onClick={() => onStartRound(!timerDisabled, timerDuration)}
+                onClick={() => {
+                  onStartRound(!timerDisabled, timerDuration) // No trophy on start, only on button enable
+                }}
                 className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium"
               >
                 Start Competition
@@ -116,7 +133,16 @@ export default function AdminControls({
             )}
             
             <button
-              onClick={onToggleButtons}
+              onClick={() => {
+                if (!currentRound?.buttonsEnabled) {
+                  // Enabling buttons - send trophy
+                  onToggleButtons(buttonsTrophyId)
+                  setButtonsTrophyId(null) // Reset after enabling
+                } else {
+                  // Disabling buttons - no trophy
+                  onToggleButtons(null)
+                }
+              }}
               disabled={!isRoundActive}
               className={`px-6 py-3 text-white rounded font-medium disabled:bg-gray-300 disabled:cursor-not-allowed ${
                 currentRound?.buttonsEnabled 
@@ -124,7 +150,7 @@ export default function AdminControls({
                   : 'bg-blue-500 hover:bg-blue-600'
               }`}
             >
-              {currentRound?.buttonsEnabled ? 'Disable Buttons' : 'Enable Buttons'}
+              {currentRound?.buttonsEnabled ? 'Disable Buttons' : 'Enable Buttons'} {buttonsTrophyId && !currentRound?.buttonsEnabled ? '🏆' : ''}
             </button>
           </div>
 
@@ -132,6 +158,9 @@ export default function AdminControls({
             <div className="mt-4 p-4 rounded" style={{ backgroundColor: 'var(--input-bg)' }}>
               <p><strong>Status:</strong> {isRoundActive ? 'Active' : 'Inactive'}</p>
               <p><strong>Buttons:</strong> {currentRound.buttonsEnabled ? 'Enabled' : 'Disabled'}</p>
+              {currentRound.trophyId && (
+                <p><strong>Trofé:</strong> 🏆 Aktiv</p>
+              )}
             </div>
           )}
         </div>

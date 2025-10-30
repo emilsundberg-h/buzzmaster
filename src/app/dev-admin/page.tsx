@@ -547,16 +547,10 @@ export default function DevAdminPage() {
         console.log('Setting currentRound to:', roundData.round)
         setCurrentRound(roundData.round)
         
-        // Automatically enable buttons when starting competition
-        console.log('Auto-enabling buttons...')
-        const enableResponse = await fetch('/api/round/enable-buttons', { method: 'POST' })
-        if (!enableResponse.ok) {
-          const error = await enableResponse.json()
-          console.error('Auto-enable failed:', error)
-        }
-        
+        // No longer auto-enabling buttons - admin must manually enable with optional trophy
         console.log('Competition started!')
         console.log('Current round after:', roundData.round)
+        console.log('NOTE: Buttons are NOT auto-enabled. Admin must manually enable with optional trophy.')
       }
     } catch (error) {
       console.error('Start round failed:', error)
@@ -625,11 +619,16 @@ export default function DevAdminPage() {
     }
   }
 
-  const handleToggleButtons = async () => {
+  const handleToggleButtons = async (trophyId: string | null) => {
     try {
       if (!currentRound) {
         return
       }
+
+      console.log('=== TOGGLE BUTTONS ===')
+      console.log('Trophy ID:', trophyId)
+      console.log('Current buttons enabled:', currentRound.buttonsEnabled)
+      console.log('========================')
 
       // If buttons are disabled but round has a winner, start a new round
       if (!currentRound.buttonsEnabled && currentRound.winnerUserId) {
@@ -644,8 +643,12 @@ export default function DevAdminPage() {
           console.error('Error:', error.error)
         }
       } else {
-        // Enable buttons
-        const response = await fetch('/api/round/enable-buttons', { method: 'POST' })
+        // Enable buttons with optional trophy
+        const response = await fetch('/api/round/enable-buttons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trophyId })
+        })
         if (!response.ok) {
           const error = await response.json()
           console.error('Error:', error.error)
@@ -905,8 +908,29 @@ export default function DevAdminPage() {
             <QuestionManager 
               competitionId={currentCompetitionId}
               refreshTrigger={questionRefreshTrigger}
-              onQuestionSent={() => {
+              onQuestionSent={(question) => {
                 console.log('Question sent to users')
+                // Auto-evaluate multiple choice questions after 30 seconds
+                if (question.type === 'MULTIPLE_CHOICE') {
+                  console.log('Multiple choice question sent, will auto-evaluate in 30 seconds')
+                  setTimeout(async () => {
+                    try {
+                      console.log('Auto-evaluating multiple choice question:', question.id)
+                      const response = await fetch('/api/questions/evaluate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ questionId: question.id })
+                      })
+                      if (response.ok) {
+                        console.log('Multiple choice question auto-evaluated successfully')
+                      } else {
+                        console.error('Failed to auto-evaluate question')
+                      }
+                    } catch (error) {
+                      console.error('Auto-evaluate error:', error)
+                    }
+                  }, 30000) // 30 seconds
+                }
               }}
             />
           </div>

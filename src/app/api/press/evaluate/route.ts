@@ -24,7 +24,18 @@ export async function POST(request: NextRequest) {
     // Get the press record
     const press = await db.press.findUnique({
       where: { id: pressId },
-      include: { user: true, round: true },
+      include: {
+        user: true,
+        round: {
+          include: {
+            competition: {
+              include: {
+                room: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!press) {
@@ -53,11 +64,48 @@ export async function POST(request: NextRequest) {
 
       const updatedRound = await db.round.update({
         where: { id: press.roundId },
-        data: { buttonsEnabled: false },
+        data: {
+          buttonsEnabled: false,
+          trophyId: null, // Clear trophy when disabling buttons after correct answer
+        },
+        include: {
+          trophy: true,
+        },
       });
 
-      // Broadcast that buttons are disabled
-      broadcast("buttons:disabled", updatedRound);
+      console.log("Buttons disabled after correct answer, trophy cleared");
+
+      // Award trophy if this round has one
+      if (press.round.trophyId) {
+        console.log(
+          `Awarding trophy ${press.round.trophyId} to user ${press.user.username} for correct buzzer press`
+        );
+
+        const trophyWin = await db.trophyWin.create({
+          data: {
+            userId: press.userId,
+            trophyId: press.round.trophyId,
+            source: "round",
+            sourceId: press.roundId,
+          },
+          include: {
+            trophy: true,
+            user: true,
+          },
+        });
+
+        // Broadcast trophy win
+        console.log(`Broadcasting trophy:won for user ${press.user.username}`);
+        broadcast("trophy:won", {
+          userId: trophyWin.user.id,
+          username: trophyWin.user.username,
+          trophy: trophyWin.trophy,
+          roomId: press.round.competition?.room?.id,
+        });
+      }
+
+      // Broadcast that buttons are disabled (with round object wrapper)
+      broadcast("buttons:disabled", { round: updatedRound });
 
       // Clear live press feed
       broadcast("presses:cleared", { roundId: press.roundId });
