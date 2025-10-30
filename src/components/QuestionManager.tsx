@@ -327,7 +327,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
 
       {/* Create Question Form */}
       {showCreateForm && (
-        <div className="mb-6 p-4 border rounded-lg" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)' }}>
+        <div className="mb-6 p-4 border-2 rounded-lg border-gray-400 dark:border-gray-600" style={{ backgroundColor: 'var(--input-bg)' }}>
           <h3 className="text-lg font-semibold mb-3">Skapa ny fråga</h3>
           
           <div className="space-y-4">
@@ -336,8 +336,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
               <textarea
                 value={questionText}
                 onChange={(e) => setQuestionText(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
-                style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                 rows={3}
                 placeholder="Skriv din fråga här..."
               />
@@ -348,8 +348,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
               <select
                 value={questionType}
                 onChange={(e) => setQuestionType(e.target.value as 'FREETEXT' | 'MULTIPLE_CHOICE')}
-                className="w-full px-3 py-2 border rounded-md"
-                style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
               >
                 <option value="FREETEXT">Frisvar</option>
                 <option value="MULTIPLE_CHOICE">Flervalsfråga</option>
@@ -364,8 +364,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                   type="text"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  className="flex-1 px-3 py-2 border rounded-md"
-                  style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  className="flex-1 px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                  style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                   placeholder="Eller ange en bild-URL..."
                 />
               </div>
@@ -376,8 +376,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                   type="file"
                   accept="image/*"
                   onChange={handleImageFileChange}
-                  className="w-full px-3 py-2 border rounded-md text-sm"
-                  style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  className="w-full px-3 py-2 border-2 rounded-md text-sm focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                  style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                 />
               </div>
 
@@ -412,8 +412,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                       type="text"
                       value={option}
                       onChange={(e) => updateOption(index, e.target.value)}
-                      className="flex-1 px-3 py-2 border rounded-md"
-                      style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                      className="flex-1 px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                      style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                       placeholder={`Alternativ ${getLetterForIndex(index)}`}
                     />
                     {options.length > 2 && (
@@ -433,8 +433,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                   <select
                     value={correctAnswerLetter}
                     onChange={(e) => setCorrectAnswerLetter(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
-                    style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                    className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                    style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                   >
                     {options.map((_, index) => (
                       <option key={index} value={getLetterForIndex(index)}>
@@ -453,8 +453,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                   type="text"
                   value={correctAnswer}
                   onChange={(e) => setCorrectAnswer(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
-                  style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                  style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                   placeholder="Rätt svar"
                 />
               </div>
@@ -468,8 +468,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                   value={points}
                   onChange={(e) => setPoints(parseInt(e.target.value) || 1)}
                   min="1"
-                  className="w-full px-3 py-2 border rounded-md"
-                  style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                  style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                 />
               </div>
 
@@ -478,8 +478,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                 <select
                   value={scoringType}
                   onChange={(e) => setScoringType(e.target.value as any)}
-                  className="w-full px-3 py-2 border rounded-md"
-                  style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
+                  style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                 >
                   <option value="ALL_EQUAL">Alla rätt får lika</option>
                   <option value="FIRST_ONLY">Bara första</option>

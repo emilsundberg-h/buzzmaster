@@ -59,6 +59,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
   const [sending, setSending] = useState(false)
   const [showPoke, setShowPoke] = useState(false)
   const [pokeFrom, setPokeFrom] = useState<string>('')
+  const [closing, setClosing] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
@@ -331,6 +332,9 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
         .chat-slide-up {
           animation: slideUp 0.3s ease-out;
         }
+        .chat-slide-down {
+          animation: slideDown 0.25s ease-in;
+        }
         @keyframes slideUp {
           from {
             opacity: 0;
@@ -341,53 +345,71 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
             transform: translateY(0);
           }
         }
+        @keyframes slideDown {
+          from {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+        }
       `}</style>
 
       {/* Poke notification */}
       {showPoke && (
         <div 
-          className="fixed bottom-[520px] right-[420px] rounded-lg shadow-2xl px-6 py-4 z-50 animate-bounce"
-          style={{ backgroundColor: 'var(--primary)', color: 'white' }}
+          className="fixed bottom-[520px] right-[420px] rounded-xl shadow-2xl px-6 py-4 z-50 border-2"
+          style={{ 
+            backgroundColor: 'var(--card-bg)', 
+            color: 'var(--foreground)',
+            borderColor: 'var(--primary)',
+            boxShadow: '0 0 0 4px rgba(59,130,246,0.25)'
+          }}
         >
-          <div className="text-lg font-bold">
-            👉 {pokeFrom} poked you!
+          <div className="text-lg font-bold flex items-center gap-2">
+            <span role="img" aria-label="poke">👉</span>
+            {pokeFrom} poked you!
           </div>
         </div>
       )}
 
-      {/* Chat window */}
+      {/* Minimized floating button */}
+      {isMinimized ? (
+        <button
+          aria-label="Open messages"
+          onClick={() => setIsMinimized(false)}
+          className="fixed bottom-4 right-4 z-40 w-12 h-12 rounded-full shadow-2xl flex items-center justify-center border"
+          style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)', borderColor: 'var(--border)' }}
+        >
+          <MessageCircle size={22} />
+          {totalUnread > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              {totalUnread > 99 ? '99+' : totalUnread}
+            </span>
+          )}
+        </button>
+      ) : (
+      /* Chat window expanded */
       <div 
         data-chat-window
-        className={`fixed bottom-0 right-0 w-96 shadow-2xl flex flex-col overflow-hidden z-40 border-l border-t transition-all duration-300 ease-in-out ${isMinimized ? 'h-14' : 'h-[500px]'}`}
+        className={`fixed bottom-0 right-0 w-96 shadow-2xl flex flex-col overflow-hidden z-40 border-l border-t h-[500px]`}
         style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)', borderColor: 'var(--border)' }}
       >
-        {/* Header with minimize button - only show when minimized */}
-        {isMinimized && (
-          <div 
-            className="p-4 border-b flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
-            style={{ borderColor: 'var(--border)' }}
-            onClick={() => setIsMinimized(false)}
-          >
-            <div className="flex items-center gap-2">
-              <MessageCircle size={20} />
-              <h3 className="text-lg font-bold">Messages</h3>
-              {totalUnread > 0 && (
-                <div className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
-                  {totalUnread > 99 ? '99+' : totalUnread}
-                </div>
-              )}
-            </div>
-            <ChevronUp size={24} />
-          </div>
-        )}
-
-        {!isMinimized && (
-          <div className="chat-slide-up flex-1 flex flex-col min-h-0">
+        
+        <div className={`${closing ? 'chat-slide-down' : 'chat-slide-up'} flex-1 flex flex-col min-h-0`}>
             {/* Minimize button when chat is open */}
             <div className="absolute top-2 right-2 z-50">
               <button
-                onClick={() => setIsMinimized(true)}
-                className="p-2 rounded-full hover:bg-opacity-20 hover:bg-gray-500 transition-all duration-200"
+              onClick={() => {
+                setClosing(true)
+                setTimeout(() => {
+                  setIsMinimized(true)
+                  setClosing(false)
+                }, 250)
+              }}
+                className="p-2 rounded-full transition-all duration-200 focus:outline-none"
                 style={{ color: 'var(--foreground)' }}
               >
                 <ChevronDown size={20} />
@@ -562,8 +584,8 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
             </>
           )}
           </div>
-        )}
         </div>
+      )}
     </>
   )
 }
