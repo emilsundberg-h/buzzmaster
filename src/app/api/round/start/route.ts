@@ -50,6 +50,10 @@ export async function POST(request: Request) {
         timerDuration: timerDuration || null,
         timerEndsAt: timerEndsAt,
         trophyId: trophyId || null,
+        thumbGameActive: false,
+        thumbGameStarterId: null,
+        thumbGameResponders: "[]",
+        thumbGameUsedBy: "[]",
       },
       include: {
         trophy: true, // Include trophy information in broadcast

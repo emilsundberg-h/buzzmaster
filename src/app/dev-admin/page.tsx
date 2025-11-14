@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import Image from 'next/image'
+import ConfirmModal from '@/components/ConfirmModal'
+import ChallengeResultsModal from '@/components/ChallengeResultsModal'
 import ScoreColumns from '@/components/ScoreColumns'
 import AdminControls from '@/components/AdminControls'
 import LivePressList from '@/components/LivePressList'
@@ -85,6 +88,17 @@ export default function DevAdminPage() {
   const [savedTimerEnabled, setSavedTimerEnabled] = useState(false)
   const [savedTimerDuration, setSavedTimerDuration] = useState(10)
   const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0)
+  const [showUsers, setShowUsers] = useState(true)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [pendingDeleteUserId, setPendingDeleteUserId] = useState<string | null>(null)
+  // Challenge config
+  const [challengeOpen, setChallengeOpen] = useState(false)
+  const [arkSeed, setArkSeed] = useState(12345)
+  const [arkRows, setArkRows] = useState(6)
+  const [arkCols, setArkCols] = useState(10)
+  const [arkSpeed, setArkSpeed] = useState(200)
+  const [arkPaddle, setArkPaddle] = useState(72)
+  const [arkChillMode, setArkChillMode] = useState(false)
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -699,6 +713,29 @@ export default function DevAdminPage() {
     }
   }
 
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        console.error('API Error:', error.error)
+        alert(error.error || 'Failed to delete user')
+        return
+      }
+
+      await Promise.all([
+        fetchRooms(),
+        fetchScoreboard()
+      ])
+    } catch (error) {
+      console.error('Delete user failed:', error)
+      alert('Failed to delete user')
+    }
+  }
+
   const handleKickUser = async (userId: string, roomId: string) => {
     try {
       const response = await fetch('/api/rooms/kick', {
@@ -769,7 +806,72 @@ export default function DevAdminPage() {
               Clear WebSocket Connections
             </button>
           </div>
+
+        {/* Delete User Confirm Modal */}
+        <ConfirmModal
+          open={confirmDeleteOpen}
+          title="Delete user?"
+          description="Are you sure you want to delete this user? This cannot be undone."
+          cancelText="Cancel"
+          confirmText="Delete"
+          onCancel={() => { setConfirmDeleteOpen(false); setPendingDeleteUserId(null); }}
+          onConfirm={async () => {
+            if (pendingDeleteUserId) {
+              await handleDeleteUser(pendingDeleteUserId)
+            }
+            setConfirmDeleteOpen(false)
+            setPendingDeleteUserId(null)
+          }}
+        />
         </div>
+
+        {/* Users Management */}
+        <div className="p-6 rounded-lg shadow mb-8" style={{ backgroundColor: 'var(--card-bg)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Users</h2>
+            <button
+              onClick={() => setShowUsers(s => !s)}
+              className="px-3 py-1 rounded-md text-sm"
+              style={{ border: `1px solid var(--border)`, backgroundColor: 'var(--input-bg)' }}
+            >
+              {showUsers ? 'Hide' : 'Show'} ({users.length})
+            </button>
+          </div>
+          <p className="text-sm opacity-80 mb-4">Manage users before entering a room. Deleting a user frees up their avatar.</p>
+          {showUsers && (
+            <>
+              {users.length === 0 ? (
+                <div className="text-sm opacity-70">No users found.</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {users.map(u => (
+                    <div key={u.id} className="p-4 border rounded-lg flex items-center justify-between gap-3"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--input-bg)' }}>
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-10 w-10 rounded-full overflow-hidden">
+                          <Image src={`/avatars/${u.avatarKey}.webp`} alt={u.username} fill className="object-cover" />
+                        </div>
+                        <div>
+                          <div className="font-semibold">{u.username}</div>
+                          <div className="text-xs opacity-70">Score: {u.score}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setPendingDeleteUserId(u.id); setConfirmDeleteOpen(true); }}
+                        className="px-3 py-2 rounded-md text-white text-sm"
+                        style={{ backgroundColor: '#ef4444' }}
+                        title="Delete user"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
 
         {/* Room Management */}
         <div className="p-6 rounded-lg shadow mb-8" style={{ backgroundColor: 'var(--card-bg)' }}>
@@ -896,6 +998,7 @@ export default function DevAdminPage() {
             onToggleButtons={handleToggleButtons}
             onEndRound={handleEndRound}
             onUpdateScore={handleUpdateScore}
+            onDeleteUser={handleDeleteUser}
             users={currentRoom?.memberships?.map((m: Membership) => m.user) || []}
              currentRound={currentRound || undefined}
             recentPresses={recentPresses}
@@ -947,6 +1050,77 @@ export default function DevAdminPage() {
           </div>
         )}
 
+        {/* Arkanoid Challenge - under Category section */}
+        {currentCompetitionId && currentRoom && currentRound && (
+          <div className="mb-8">
+            <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Arkanoid Challenge</h2>
+                <button
+                  onClick={() => setChallengeOpen(true)}
+                  className="px-4 py-2 rounded-md text-white"
+                  style={{ backgroundColor: 'var(--primary)' }}
+                  disabled={!currentRound || !!currentRound.endedAt}
+                  title={currentRound && !currentRound.endedAt ? 'Start Arkanoid challenge' : 'Round must be active'}
+                >
+                  Start Arkanoid
+                </button>
+              </div>
+              <div className="mb-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={arkChillMode} 
+                    onChange={e => setArkChillMode(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium">Chill Mode (game ends only when all players are eliminated)</span>
+                </label>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div>
+                  <label className="block text-xs opacity-70 mb-1">Seed</label>
+                  <input type="number" value={arkSeed} onChange={e => setArkSeed(parseInt(e.target.value||'0'))} className="w-full px-2 py-1 border rounded" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                </div>
+                <div>
+                  <label className="block text-xs opacity-70 mb-1">Rows</label>
+                  <input type="number" value={arkRows} min={3} max={10} onChange={e => setArkRows(parseInt(e.target.value||'6'))} className="w-full px-2 py-1 border rounded" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                </div>
+                <div>
+                  <label className="block text-xs opacity-70 mb-1">Cols</label>
+                  <input type="number" value={arkCols} min={5} max={14} onChange={e => setArkCols(parseInt(e.target.value||'10'))} className="w-full px-2 py-1 border rounded" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                </div>
+                <div>
+                  <label className="block text-xs opacity-70 mb-1">Ball speed</label>
+                  <input type="number" value={arkSpeed} min={120} max={400} onChange={e => setArkSpeed(parseInt(e.target.value||'200'))} className="w-full px-2 py-1 border rounded" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                </div>
+                <div>
+                  <label className="block text-xs opacity-70 mb-1">Paddle width</label>
+                  <input type="number" value={arkPaddle} min={48} max={120} onChange={e => setArkPaddle(parseInt(e.target.value||'72'))} className="w-full px-2 py-1 border rounded" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ConfirmModal
+          open={challengeOpen}
+          title="Start Arkanoid challenge?"
+          description="All users in the selected room will play simultaneously with 1 life. The last survivor wins."
+          cancelText="Cancel"
+          confirmText="Start"
+          onCancel={() => setChallengeOpen(false)}
+          onConfirm={async () => {
+            setChallengeOpen(false)
+            if (!currentRoom || !currentRound) return
+            await fetch('/api/challenges/start', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ roomId: currentRoom.id, roundId: currentRound.id, config: { seed: arkSeed, rows: arkRows, cols: arkCols, ballSpeed: arkSpeed, paddleWidth: arkPaddle, chillMode: arkChillMode } })
+            })
+          }}
+        />
+
         {/* Live Press List */}
         <div className="mb-8">
           <LivePressList presses={recentPresses} />
@@ -988,6 +1162,9 @@ export default function DevAdminPage() {
         lastWebSocketMessage={lastMessage}
       />
     )}
+
+    {/* Challenge Results Modal */}
+    <ChallengeResultsModal onWebSocketMessage={lastMessage} />
     </>
   )
 }

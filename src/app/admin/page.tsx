@@ -203,7 +203,7 @@ export default function AdminPage() {
     }
   }
 
-  const handleToggleButtons = async () => {
+  const handleToggleButtons = async (trophyId: string | null) => {
     try {
       if (!currentRound) {
         return
@@ -222,7 +222,11 @@ export default function AdminPage() {
         }
       } else {
         // Enable buttons
-        const response = await fetch('/api/round/enable-buttons', { method: 'POST' })
+        const response = await fetch('/api/round/enable-buttons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trophyId })
+        })
         if (!response.ok) {
           const error = await response.json()
           alert(error.error)
@@ -273,6 +277,30 @@ export default function AdminPage() {
     }
   }
 
+  const handleDeleteUser = async (userId: string) => {
+    const confirmed = window.confirm('Är du säker på att du vill radera den här användaren?')
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.error || 'Kunde inte radera användaren')
+        return
+      }
+
+      await fetchScoreboard()
+    } catch (error) {
+      console.error('Delete user failed:', error)
+      alert('Kunde inte radera användaren')
+    }
+  }
+
   if (!isLoaded || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -315,6 +343,7 @@ export default function AdminPage() {
             onToggleButtons={handleToggleButtons}
             onEndRound={handleEndRound}
             onUpdateScore={handleUpdateScore}
+            onDeleteUser={handleDeleteUser}
             users={users}
             currentRound={currentRound || undefined}
             recentPresses={recentPresses}

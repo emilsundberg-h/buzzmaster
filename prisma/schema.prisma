@@ -2,6 +2,22 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model Challenge {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id])
+  roundId   String?
+  round     Round?   @relation(fields: [roundId], references: [id])
+  type      String   // e.g., 'arkanoid'
+  status    String   // 'ACTIVE' | 'ENDED'
+  startedAt DateTime?
+  endedAt   DateTime?
+  config    String   @default("{}") // JSON string with { chillMode: bool, ... }
+  alive     String   @default("[]") // JSON array of clerkIds still alive
+  results   String   @default("{}") // JSON map clerkId -> { eliminatedAt, bricks, score }
+  bets      String   @default("{}") // JSON map clerkId -> { allIn: bool, currentScore: number }
+}
+
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -34,6 +50,7 @@ model Room {
   memberships RoomMembership[]
   messages    Message[]
   pokes       Poke[]
+  challenges  Challenge[]
 }
 
 model RoomMembership {
@@ -80,6 +97,11 @@ model Round {
   trophyId       String?   // Trophy for this round
   trophy         Trophy?   @relation(fields: [trophyId], references: [id])
   presses        Press[]
+  thumbGameActive Boolean @default(false) // Is thumb game active
+  thumbGameStarterId String? // User who started the thumb game
+  thumbGameResponders String @default("[]") // JSON array of userIds who responded
+  thumbGameUsedBy String @default("[]") // JSON array of userIds who already started thumb game this round
+  challenges     Challenge[]
 }
 
 model Press {

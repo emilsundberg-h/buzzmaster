@@ -8,6 +8,7 @@ interface AdminControlsProps {
   onToggleButtons: (trophyId: string | null) => void
   onEndRound: () => void
   onUpdateScore: (userId: string, change: number) => void
+  onDeleteUser: (userId: string) => void
   users: Array<{
     id: string
     username: string
@@ -37,6 +38,7 @@ export default function AdminControls({
   onToggleButtons,
   onEndRound,
   onUpdateScore,
+  onDeleteUser,
   users,
   currentRound,
   recentPresses
@@ -208,6 +210,13 @@ export default function AdminControls({
                   className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Apply
+                </button>
+
+                <button
+                  onClick={() => onDeleteUser(user.id)}
+                  className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                >
+                  Delete
                 </button>
               </div>
             </div>

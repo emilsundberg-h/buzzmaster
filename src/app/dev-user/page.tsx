@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import ArkanoidChallenge from '@/components/ArkanoidChallenge'
 import AvatarPicker from '@/components/AvatarPicker'
 import BigBuzzerButton from '@/components/BigBuzzerButton'
 import RoomJoin from '@/components/RoomJoin'
@@ -10,6 +11,7 @@ import ChatMessenger from '@/components/ChatMessenger'
 import TrophyDisplay from '@/components/TrophyDisplay'
 import TrophyAnimation from '@/components/TrophyAnimation'
 import Toast from '@/components/Toast'
+import ThumbGame from '@/components/ThumbGame'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -304,6 +306,12 @@ export default function DevUserPage() {
           case 'chat:poke':
             // These are handled by ChatMessenger component
             break
+          case 'thumb-game:started':
+          case 'thumb-game:updated':
+          case 'thumb-game:ended':
+            console.log('WebSocket: Thumb game event received:', actualMessage.type)
+            // These are handled by ThumbGame component
+            break
           default:
             console.log('WebSocket: Unknown wrapped message type:', actualMessage.type)
         }
@@ -427,6 +435,12 @@ export default function DevUserPage() {
           case 'chat:message':
           case 'chat:poke':
             // These are handled by ChatMessenger component
+            break
+          case 'thumb-game:started':
+          case 'thumb-game:updated':
+          case 'thumb-game:ended':
+            console.log('WebSocket: Thumb game event received (direct):', lastMessage.type)
+            // These are handled by ThumbGame component
             break
           case 'connected':
             console.log('WebSocket: Connected to server')
@@ -917,6 +931,28 @@ export default function DevUserPage() {
           roomId={currentRoom.id}
           currentUserId={userId}
           lastWebSocketMessage={lastMessage}
+        />
+      )}
+
+      {/* Arkanoid Challenge */}
+      {currentRoom && userId && (
+        <ArkanoidChallenge
+          currentUserId={userId}
+          currentRoomId={currentRoom.id}
+          roundActive={Boolean(roundStatus && roundStatus.startedAt && !roundStatus.endedAt)}
+          onWebSocketMessage={lastMessage}
+          fetchWithUserId={fetchWithUserId}
+        />
+      )}
+
+      {/* Thumb Game */}
+      {userId && (
+        <ThumbGame
+          currentUserId={userId}
+          onWebSocketMessage={lastMessage}
+          fetchWithUserId={fetchWithUserId}
+          roundActive={Boolean(roundStatus && roundStatus.startedAt && !roundStatus.endedAt)}
+          totalPlayers={currentRoom?.memberships?.length || 3}
         />
       )}
     </div>

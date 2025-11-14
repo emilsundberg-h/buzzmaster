@@ -42,3 +42,6 @@ next-env.d.ts
 
 # uploads
 /public/uploads
+
+# clerk configuration (can include secrets)
+/.clerk/
