@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import ArkanoidChallenge from '@/components/ArkanoidChallenge'
+import SimonChallenge from '@/components/SimonChallenge'
 import AvatarPicker from '@/components/AvatarPicker'
 import BigBuzzerButton from '@/components/BigBuzzerButton'
 import RoomJoin from '@/components/RoomJoin'
@@ -441,6 +442,13 @@ export default function DevUserPage() {
           case 'thumb-game:ended':
             console.log('WebSocket: Thumb game event received (direct):', lastMessage.type)
             // These are handled by ThumbGame component
+            break
+          case 'challenge:started':
+          case 'challenge:betPlaced':
+          case 'challenge:playerEliminated':
+          case 'challenge:ended':
+            console.log('WebSocket: Challenge event received (direct):', lastMessage.type)
+            // These are handled by ArkanoidChallenge and SimonChallenge components
             break
           case 'connected':
             console.log('WebSocket: Connected to server')
@@ -937,6 +945,17 @@ export default function DevUserPage() {
       {/* Arkanoid Challenge */}
       {currentRoom && userId && (
         <ArkanoidChallenge
+          currentUserId={userId}
+          currentRoomId={currentRoom.id}
+          roundActive={Boolean(roundStatus && roundStatus.startedAt && !roundStatus.endedAt)}
+          onWebSocketMessage={lastMessage}
+          fetchWithUserId={fetchWithUserId}
+        />
+      )}
+
+      {/* Simon Challenge */}
+      {currentRoom && userId && (
+        <SimonChallenge
           currentUserId={userId}
           currentRoomId={currentRoom.id}
           roundActive={Boolean(roundStatus && roundStatus.startedAt && !roundStatus.endedAt)}

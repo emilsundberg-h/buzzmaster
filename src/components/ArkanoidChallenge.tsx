@@ -124,6 +124,8 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
     const actual = onWebSocketMessage.type === 'message' && onWebSocketMessage.data ? onWebSocketMessage.data : onWebSocketMessage
     if (actual.type === 'challenge:started') {
       if (!currentRoomId || actual.data?.roomId !== currentRoomId) return
+      // Only react to Arkanoid challenges
+      if (actual.data?.type !== 'arkanoid') return
       setChallenge({ active: true, id: actual.data?.id, config: actual.data?.config || {}, alive: actual.data?.alive || [], results: {} })
       setEliminated(false)
       setSubmitted(false)
@@ -182,6 +184,9 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
       }).catch(() => {})
     }
     if (actual.type === 'challenge:ended') {
+      // Only react if this is OUR challenge (not another challenge type)
+      if (actual.data?.id !== challenge.id) return
+      
       setChallenge(prev => ({ ...prev, active: false }))
       // stop game loop
       gameRef.current?.stop()

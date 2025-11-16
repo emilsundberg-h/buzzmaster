@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const roomId: string | undefined = body?.roomId;
     const roundId: string | undefined = body?.roundId;
+    const type: string = body?.type || 'arkanoid'; // Default to arkanoid for backwards compatibility
     const config = body?.config || {};
 
     if (!roomId) {
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
       data: {
         roomId,
         roundId,
-        type: "arkanoid",
+        type,
         status: "ACTIVE",
         startedAt: new Date(),
         config: JSON.stringify(config),
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     broadcast("challenge:started", {
       id: challenge.id,
       roomId,
-      type: "arkanoid",
+      type,
       config,
       alive: aliveClerkIds,
       startedAt: challenge.startedAt,

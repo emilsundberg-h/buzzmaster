@@ -99,6 +99,9 @@ export default function DevAdminPage() {
   const [arkSpeed, setArkSpeed] = useState(200)
   const [arkPaddle, setArkPaddle] = useState(72)
   const [arkChillMode, setArkChillMode] = useState(false)
+  // Simon Game config
+  const [simonOpen, setSimonOpen] = useState(false)
+  const [simonChillMode, setSimonChillMode] = useState(false)
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -406,6 +409,13 @@ export default function DevAdminPage() {
                 case 'chat:message':
                 case 'chat:poke':
                   // These are handled by ChatMessenger component
+                  break
+                case 'challenge:started':
+                case 'challenge:betPlaced':
+                case 'challenge:playerEliminated':
+                case 'challenge:ended':
+                  console.log('WebSocket: Challenge event received (direct):', lastMessage.type)
+                  // These are handled by ArkanoidChallenge and SimonChallenge components
                   break
                 case 'connected':
                   console.log('WebSocket: Connected to server')
@@ -1050,12 +1060,14 @@ export default function DevAdminPage() {
           </div>
         )}
 
-        {/* Arkanoid Challenge - under Category section */}
+        {/* Challenges - under Category section */}
         {currentCompetitionId && currentRoom && currentRound && (
-          <div className="mb-8">
-            <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">Arkanoid Challenge</h2>
+          <>
+            {/* Arkanoid Challenge */}
+            <div className="mb-8">
+              <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Arkanoid Challenge</h2>
                 <button
                   onClick={() => setChallengeOpen(true)}
                   className="px-4 py-2 rounded-md text-white"
@@ -1101,8 +1113,70 @@ export default function DevAdminPage() {
               </div>
             </div>
           </div>
+
+            {/* Simon Game */}
+            <div className="mb-8">
+              <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">🎵 Simon Game</h2>
+                  <button
+                    onClick={() => setSimonOpen(true)}
+                    className="px-4 py-2 rounded-md text-white"
+                    style={{ backgroundColor: 'var(--primary)' }}
+                    disabled={!currentRound || !!currentRound.endedAt}
+                    title={currentRound && !currentRound.endedAt ? 'Start Simon Game' : 'Round must be active'}
+                  >
+                    Start Simon
+                  </button>
+                </div>
+                <div className="mb-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={simonChillMode} 
+                      onChange={e => setSimonChillMode(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium">Chill Mode (game ends only when all players are eliminated)</span>
+                  </label>
+                </div>
+                <div className="text-xs opacity-70 mt-2">
+                  💡 Each game generates a unique random sequence
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
+        {/* Simon Game Modal */}
+        <ConfirmModal
+          open={simonOpen}
+          title="Start Simon Game?"
+          description={`All users will play Simon Says. Remember the sequence and repeat it. ${simonChillMode ? 'Chill Mode: Game continues until all players are eliminated.' : 'Game ends when only one player remains.'}`}
+          cancelText="Cancel"
+          confirmText="Start"
+          onCancel={() => setSimonOpen(false)}
+          onConfirm={async () => {
+            setSimonOpen(false)
+            if (!currentRoom || !currentRound) return
+            // Generate new random seed for each game to ensure different sequences
+            // Use timestamp + random for maximum variation
+            const randomSeed = Date.now() + Math.floor(Math.random() * 1000000)
+            console.log('Starting Simon Game with random seed:', randomSeed)
+            await fetch('/api/challenges/start', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                roomId: currentRoom.id, 
+                roundId: currentRound.id, 
+                type: 'simon',
+                config: { seed: randomSeed, chillMode: simonChillMode } 
+              })
+            })
+          }}
+        />
+
+        {/* Arkanoid Modal */}
         <ConfirmModal
           open={challengeOpen}
           title="Start Arkanoid challenge?"
