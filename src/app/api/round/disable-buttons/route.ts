@@ -29,6 +29,7 @@ export async function POST() {
       data: {
         buttonsEnabled: false,
         trophyId: null, // Clear trophy when disabling buttons
+        playerTrophyId: null, // Clear player trophy as well
       },
       include: {
         trophy: true, // Include trophy information in broadcast (will be null now)

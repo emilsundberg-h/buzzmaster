@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { MessageCircle, X, Users, Send, ChevronDown, ChevronUp } from 'lucide-react'
+import { Send, MessageCircle, Minimize2, X, ChevronDown, Users } from 'lucide-react'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 
 interface Message {
   id: string
@@ -454,7 +455,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
                       }}
                     >
                       <img
-                        src={`/avatars/${participant.avatarKey}.webp`}
+                        src={getAvatarPath(participant.avatarKey)}
                         alt={participant.username}
                         className="w-12 h-12 rounded-full"
                       />
@@ -502,7 +503,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
                 </button>
                 {activeChatInfo?.avatarKey ? (
                   <img
-                    src={`/avatars/${activeChatInfo.avatarKey}.webp`}
+                    src={getAvatarPath(activeChatInfo.avatarKey)}
                     alt={activeChatInfo.name}
                     className="w-10 h-10 rounded-full"
                   />
@@ -523,7 +524,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
                       <div className={`flex gap-2 max-w-[80%] ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
                         {!isOwnMessage && (
                           <img
-                            src={`/avatars/${message.sender.avatarKey}.webp`}
+                            src={getAvatarPath(message.sender.avatarKey)}
                             alt={message.sender.username}
                             className="w-8 h-8 rounded-full"
                           />

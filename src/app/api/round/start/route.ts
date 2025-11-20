@@ -46,10 +46,12 @@ export async function POST(request: Request) {
         competitionId: activeCompetition.id,
         startedAt: new Date(),
         buttonsEnabled: false,
+        winnerUserId: null, // Ensure clean state for new round
         hasTimer: hasTimer,
         timerDuration: timerDuration || null,
         timerEndsAt: timerEndsAt,
         trophyId: trophyId || null,
+        playerTrophyId: null, // Ensure clean state for new round
         thumbGameActive: false,
         thumbGameStarterId: null,
         thumbGameResponders: "[]",

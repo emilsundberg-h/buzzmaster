@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 
 interface AvatarPickerProps {
   onSelect: (avatarKey: string) => void
@@ -43,7 +44,7 @@ export default function AvatarPicker({ onSelect, selectedAvatar }: AvatarPickerP
           }}
         >
           <Image
-            src={`/avatars/${avatarKey}.webp`}
+            src={getAvatarPath(avatarKey, selectedAvatar === avatarKey)}
             alt={`Avatar ${avatarKey}`}
             fill
             className="object-cover"

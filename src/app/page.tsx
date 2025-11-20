@@ -8,6 +8,7 @@ import BigBuzzerButton from '@/components/BigBuzzerButton'
 import TrophyDisplay from '@/components/TrophyDisplay'
 import TrophyAnimation from '@/components/TrophyAnimation'
 import Toast from '@/components/Toast'
+import DreamElevenModal from '@/components/DreamElevenModal'
 
 interface UserProfile {
   id: string
@@ -47,6 +48,7 @@ export default function UserPage() {
   const [trophyWins, setTrophyWins] = useState<TrophyWin[]>([])
   const [showTrophyAnimation, setShowTrophyAnimation] = useState(false)
   const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string } | null>(null)
+  const [showDreamEleven, setShowDreamEleven] = useState(false)
 
   // SSE connection
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function UserPage() {
         case 'round:started':
           console.log('Round started event received:', data)
           setRoundStatus(data)
+          setShowDreamEleven(false) // Close modal on round start
           break
         case 'round:update':
           console.log('Round update event received:', data)
@@ -68,6 +71,7 @@ export default function UserPage() {
         case 'buttons:disabled':
           console.log('Buttons toggled event received:', data)
           setRoundStatus(data.round)
+          setShowDreamEleven(false) // Close modal on button toggle
           break
         case 'scores:updated':
           fetchProfile()
@@ -293,7 +297,7 @@ export default function UserPage() {
                   title={`${win.trophy.name} - Vunnen ${new Date(win.wonAt).toLocaleDateString()}`}
                 >
                   <img
-                    src={`/trophys/${win.trophy.imageKey}`}
+                    src={`/${win.trophy.imageKey}`}
                     alt={win.trophy.name}
                     className="h-[22px] w-auto object-contain"
                   />
@@ -314,6 +318,14 @@ export default function UserPage() {
           <p className="text-xl text-gray-600">
             Your Score: <span className="font-bold text-blue-600">{profile.score}</span>
           </p>
+          <div className="mt-4">
+            <button
+              onClick={() => setShowDreamEleven(true)}
+              className="inline-block px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold shadow-lg transition-all hover:scale-105"
+            >
+              ⚽ My Dream Eleven
+            </button>
+          </div>
         </div>
 
         {/* Trophy Display */}
@@ -373,6 +385,12 @@ export default function UserPage() {
           )}
         </div>
       </div>
+
+      {/* Dream Eleven Modal */}
+      <DreamElevenModal 
+        isOpen={showDreamEleven}
+        onClose={() => setShowDreamEleven(false)}
+      />
     </div>
   )
 }

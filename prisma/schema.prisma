@@ -38,6 +38,8 @@ model User {
   sentPokes Poke[] @relation("SentPokes")
   receivedPokes Poke[] @relation("ReceivedPokes")
   trophyWins TrophyWin[]
+  players    UserPlayer[] // Players owned by this user
+  team       UserTeam? // User's starting eleven
 }
 
 model Room {
@@ -96,6 +98,7 @@ model Round {
   timerEndsAt    DateTime? // When the timer will end
   trophyId       String?   // Trophy for this round
   trophy         Trophy?   @relation(fields: [trophyId], references: [id])
+  playerTrophyId String?   // Player/Artist trophy ID (format: player_<playerId>)
   presses        Press[]
   thumbGameActive Boolean @default(false) // Is thumb game active
   thumbGameStarterId String? // User who started the thumb game
@@ -300,4 +303,87 @@ model TrophyWin {
   
   @@index([userId])
   @@index([trophyId])
+}
+
+// Player - represents football players and other awards
+model Player {
+  id          String   @id @default(cuid())
+  name        String   // Display name
+  position    PlayerPosition // GK, DEF, MID, FWD (only for footballer type)
+  imageKey    String   // Filename in /public/starting_pack/ or /public/footballers/
+  type        PlayerType @default(FOOTBALLER) // FOOTBALLER, FESTIVAL, FILM
+  category    PlayerCategory // STARTER or AWARD
+  createdAt   DateTime @default(now())
+  
+  userPlayers UserPlayer[] // Players owned by users
+  teamPositions TeamPosition[] // Positions in user teams
+}
+
+enum PlayerPosition {
+  GK   // Goalkeeper
+  DEF  // Defender
+  MID  // Midfielder
+  FWD  // Forward
+  ANY  // For non-footballer awards
+}
+
+enum PlayerType {
+  FOOTBALLER
+  FESTIVAL
+  FILM
+}
+
+enum PlayerCategory {
+  STARTER  // Starting pack
+  AWARD    // Won during game
+  CAPTAIN  // User's captain based on avatar
+}
+
+// UserPlayer - junction table for players owned by users
+model UserPlayer {
+  id        String   @id @default(cuid())
+  userId    String
+  playerId  String
+  acquiredAt DateTime @default(now())
+  revealed  Boolean  @default(false) // For festival artists - has user flipped the card?
+  
+  user      User     @relation(fields: [userId], references: [id])
+  player    Player   @relation(fields: [playerId], references: [id])
+  
+  @@unique([userId, playerId])
+  @@index([userId])
+  @@index([playerId])
+}
+
+// UserTeam - stores user's current formation and lineup
+model UserTeam {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  formation   Formation @default(F442)
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id])
+  positions   TeamPosition[]
+}
+
+enum Formation {
+  F442         // 4-4-2
+  F442_DIAMOND // 4-4-2 Diamond
+  F433         // 4-3-3
+  F343         // 3-4-3
+}
+
+// TeamPosition - individual position in user's team
+model TeamPosition {
+  id        String   @id @default(cuid())
+  teamId    String
+  playerId  String
+  position  Int      // Position index (0-10) for the 11 players
+  
+  team      UserTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player    Player   @relation(fields: [playerId], references: [id])
+  
+  @@unique([teamId, position])
+  @@index([teamId])
+  @@index([playerId])
 }

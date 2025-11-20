@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 import { Trophy } from 'lucide-react'
 
 interface CategoryGameDisplayProps {
@@ -164,7 +165,7 @@ export default function CategoryGameDisplay({
             </div>
             <div className="flex flex-col items-center gap-4">
               <img
-                src={`/avatars/${currentGame.currentPlayerInfo.avatarKey}.webp`}
+                src={getAvatarPath(currentGame.currentPlayerInfo.avatarKey)}
                 alt={currentGame.currentPlayerInfo.username}
                 className="w-40 h-40 rounded-full border-8 shadow-2xl animate-pulse"
                 style={{ borderColor: 'var(--primary)' }}
@@ -193,7 +194,7 @@ export default function CategoryGameDisplay({
                 </div>
                 <div className="flex flex-col items-center gap-3">
                   <img
-                    src={`/avatars/${currentGame.currentPlayerInfo.avatarKey}.webp`}
+                    src={getAvatarPath(currentGame.currentPlayerInfo.avatarKey)}
                     alt={currentGame.currentPlayerInfo.username}
                     className="w-24 h-24 rounded-full"
                     style={{

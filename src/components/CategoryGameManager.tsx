@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Play, Pause, SkipForward, Trophy } from 'lucide-react'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 import TrophyPicker from './TrophyPicker'
 
 interface CategoryGameManagerProps {
@@ -300,7 +301,7 @@ export default function CategoryGameManager({
               <div className="text-lg font-semibold">Aktiv spelare:</div>
               <div className="flex items-center justify-center gap-3">
                 <img
-                  src={`/avatars/${currentGame.currentPlayerInfo.avatarKey}.webp`}
+                  src={getAvatarPath(currentGame.currentPlayerInfo.avatarKey)}
                   alt={currentGame.currentPlayerInfo.username}
                   className="w-16 h-16 rounded-full"
                 />
@@ -375,7 +376,7 @@ export default function CategoryGameManager({
           </div>
           <div className="flex flex-col items-center gap-4">
             <img
-              src={`/avatars/${currentGame.currentPlayerInfo.avatarKey}.webp`}
+              src={getAvatarPath(currentGame.currentPlayerInfo.avatarKey)}
               alt={currentGame.currentPlayerInfo.username}
               className="w-32 h-32 rounded-full border-4 shadow-xl"
               style={{ borderColor: 'var(--primary)' }}

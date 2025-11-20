@@ -8,7 +8,10 @@
     "websocket": "node websocket-server.js",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "cd prisma && npx prisma generate && DATABASE_URL=\"file:./dev.db\" npx tsx seed-players.ts",
+    "db:seed-trophies": "cd prisma && DATABASE_URL=\"file:./dev.db\" npx tsx seed-trophies.ts",
+    "db:seed-captains": "cd prisma && DATABASE_URL=\"file:./dev.db\" npx tsx seed-captains.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.34.0",

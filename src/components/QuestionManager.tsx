@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Trophy } from 'lucide-react'
 import TrophyPicker from './TrophyPicker'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 
 interface Question {
   id: string
@@ -656,7 +658,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                             {/* Avatar */}
                             <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
                               <img
-                                src={`/avatars/${answer.avatarKey}.webp`}
+                                src={getAvatarPath(answer.avatarKey)}
                                 alt={answer.username}
                                 className="w-full h-full object-cover"
                               />

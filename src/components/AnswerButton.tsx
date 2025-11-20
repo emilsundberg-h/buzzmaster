@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 
 interface AnswerButtonProps {
   avatarKey: string
@@ -31,9 +32,7 @@ export default function AnswerButton({
   }
 
   // Use color version if answered, grayscale otherwise
-  const imageSrc = hasAnswered 
-    ? `/avatars/${avatarKey}.webp`
-    : `/avatars/${avatarKey}-gray.webp`
+  const imageSrc = getAvatarPath(avatarKey, hasAnswered)
 
   const isButtonDisabled = disabled || hasAnswered
 

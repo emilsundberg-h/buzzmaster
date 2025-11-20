@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 import ConfirmModal from '@/components/ConfirmModal'
 import ChallengeResultsModal from '@/components/ChallengeResultsModal'
 import ScoreColumns from '@/components/ScoreColumns'
@@ -102,6 +103,12 @@ export default function DevAdminPage() {
   // Simon Game config
   const [simonOpen, setSimonOpen] = useState(false)
   const [simonChillMode, setSimonChillMode] = useState(false)
+  
+  // Give Player/Artist state
+  const [availablePlayers, setAvailablePlayers] = useState<Array<{ id: string; name: string; type: string; position: string }>>([])
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>('')
+  const [playerFilter, setPlayerFilter] = useState<'ALL' | 'FOOTBALLER' | 'FESTIVAL'>('ALL')
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -245,8 +252,13 @@ export default function DevAdminPage() {
                 case 'buttons:disabled':
                   updateRoundFromMessage(actualMessage.data)
                   break
+                case 'presses:cleared':
+                  console.log('WebSocket: Clearing recent presses (wrapped)')
+                  setRecentPresses([])
+                  break
                 case 'press:new':
                   setRecentPresses(prev => {
+                    console.log('press:new received - recentPresses.length:', prev.length, 'showAnswerModal:', showAnswerModalRef.current)
                     // If this is the first press and modal not already shown, show it
                     if (prev.length === 0 && !showAnswerModalRef.current) {
                       console.log('First press detected, showing modal')
@@ -367,9 +379,10 @@ export default function DevAdminPage() {
                   break
                 case 'press:new':
                   setRecentPresses(prev => {
+                    console.log('press:new received (direct) - recentPresses.length:', prev.length, 'showAnswerModal:', showAnswerModalRef.current)
                     // If this is the first press and modal not already shown, show it
                     if (prev.length === 0 && !showAnswerModalRef.current) {
-                      console.log('First press detected, showing modal')
+                      console.log('First press detected, showing modal (direct)')
                       setFirstPress(lastMessage.data)
                       setShowAnswerModal(true)
                     }
@@ -604,6 +617,20 @@ export default function DevAdminPage() {
 
       console.log('Answer evaluated successfully')
       
+      // If correct answer, update currentRound to reflect disabled buttons and close modal
+      if (isCorrect && currentRound) {
+        setCurrentRound({
+          ...currentRound,
+          buttonsEnabled: false,
+          winnerUserId: undefined, // Clear winner to prevent auto-new-round on next enable
+        })
+        // Close the modal after correct answer
+        setShowAnswerModal(false)
+        setFirstPress(null)
+        // Clear recentPresses so next press can trigger modal
+        setRecentPresses([])
+      }
+      
       // Manually refresh scoreboard to ensure UI updates when submitting
       // (Give to Next handles its own updates via WebSocket)
       if (isCorrect) {
@@ -654,12 +681,7 @@ export default function DevAdminPage() {
       console.log('Current buttons enabled:', currentRound.buttonsEnabled)
       console.log('========================')
 
-      // If buttons are disabled but round has a winner, start a new round
-      if (!currentRound.buttonsEnabled && currentRound.winnerUserId) {
-        console.log('Buttons disabled with winner detected, starting new round')
-        // Use saved timer settings from when competition started
-        await handleStartRound(savedTimerEnabled, savedTimerDuration)
-      } else if (currentRound.buttonsEnabled) {
+      if (currentRound.buttonsEnabled) {
         // Disable buttons
         const response = await fetch('/api/round/disable-buttons', { method: 'POST' })
         if (!response.ok) {
@@ -667,7 +689,7 @@ export default function DevAdminPage() {
           console.error('Error:', error.error)
         }
       } else {
-        // Enable buttons with optional trophy
+        // Enable buttons with optional trophy (allows multiple questions per round)
         const response = await fetch('/api/round/enable-buttons', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -745,6 +767,57 @@ export default function DevAdminPage() {
       alert('Failed to delete user')
     }
   }
+
+  // Fetch available players/artists
+  const fetchAvailablePlayers = async () => {
+    try {
+      console.log('Fetching available players...')
+      const response = await fetch('/api/players')
+      const data = await response.json()
+      console.log('Players fetched:', data.length, 'players')
+      console.log('First few players:', data.slice(0, 3))
+      setAvailablePlayers(data)
+    } catch (error) {
+      console.error('Failed to fetch players:', error)
+    }
+  }
+
+  // Give player/artist to user
+  const handleGivePlayer = async () => {
+    if (!selectedUserId || !selectedPlayerId) {
+      alert('Please select both a user and a player/artist')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/players/give', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: selectedUserId, 
+          playerId: selectedPlayerId 
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert(data.error || 'Failed to give player')
+        return
+      }
+
+      alert(data.message || 'Player given successfully!')
+      setSelectedPlayerId('')
+    } catch (error) {
+      console.error('Give player failed:', error)
+      alert('Failed to give player')
+    }
+  }
+
+  // Fetch players on mount
+  useEffect(() => {
+    fetchAvailablePlayers()
+  }, [])
 
   const handleKickUser = async (userId: string, roomId: string) => {
     try {
@@ -859,7 +932,7 @@ export default function DevAdminPage() {
                       style={{ borderColor: 'var(--border)', backgroundColor: 'var(--input-bg)' }}>
                       <div className="flex items-center gap-3">
                         <div className="relative h-10 w-10 rounded-full overflow-hidden">
-                          <Image src={`/avatars/${u.avatarKey}.webp`} alt={u.username} fill className="object-cover" />
+                          <Image src={getAvatarPath(u.avatarKey)} alt={u.username} fill className="object-cover" />
                         </div>
                         <div>
                           <div className="font-semibold">{u.username}</div>
@@ -946,7 +1019,7 @@ export default function DevAdminPage() {
                               <div key={membership.id} className="flex items-center justify-between space-x-2 text-sm">
                                 <div className="flex items-center space-x-2">
                                   <img
-                                    src={`/avatars/${membership.user.avatarKey}.webp`}
+                                    src={getAvatarPath(membership.user.avatarKey)}
                                     alt={membership.user.username}
                                     className="w-6 h-6 rounded-full"
                                   />
@@ -1046,6 +1119,84 @@ export default function DevAdminPage() {
                 }
               }}
             />
+          </div>
+        )}
+
+        {/* Give Player/Artist to Winner */}
+        {currentRoom && (
+          <div className="p-6 rounded-lg shadow mb-8" style={{ backgroundColor: 'var(--card-bg)' }}>
+            <h2 className="text-xl font-bold mb-4">🎁 Give Player/Artist to Winner</h2>
+            
+            <div className="space-y-4">
+              {/* Filter buttons */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setPlayerFilter('ALL')}
+                  className={`px-4 py-2 rounded ${playerFilter === 'ALL' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setPlayerFilter('FOOTBALLER')}
+                  className={`px-4 py-2 rounded ${playerFilter === 'FOOTBALLER' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
+                >
+                  ⚽ Footballers
+                </button>
+                <button
+                  onClick={() => setPlayerFilter('FESTIVAL')}
+                  className={`px-4 py-2 rounded ${playerFilter === 'FESTIVAL' ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}
+                >
+                  🎵 Artists
+                </button>
+              </div>
+
+              {/* User selection */}
+              <div>
+                <label className="block font-medium mb-2">Select User (Winner)</label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full p-2 border rounded bg-white text-black"
+                >
+                  <option value="">-- Select User --</option>
+                  {currentRoom.memberships.map((m) => (
+                    <option key={m.user.id} value={m.user.id}>
+                      {m.user.username} (Score: {m.user.score})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Player/Artist selection */}
+              <div>
+                <label className="block font-medium mb-2">
+                  Select {playerFilter === 'FOOTBALLER' ? 'Footballer' : playerFilter === 'FESTIVAL' ? 'Artist' : 'Player/Artist'}
+                </label>
+                <select
+                  value={selectedPlayerId}
+                  onChange={(e) => setSelectedPlayerId(e.target.value)}
+                  className="w-full p-2 border rounded bg-white text-black max-h-64 overflow-y-auto"
+                >
+                  <option value="">-- Select {playerFilter === 'FOOTBALLER' ? 'Footballer' : playerFilter === 'FESTIVAL' ? 'Artist' : 'Player/Artist'} --</option>
+                  {availablePlayers
+                    .filter(p => playerFilter === 'ALL' || p.type === playerFilter)
+                    .map((player) => (
+                      <option key={player.id} value={player.id}>
+                        {player.type === 'FOOTBALLER' ? '⚽' : '🎵'} {player.name} ({player.position})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Give button */}
+              <button
+                onClick={handleGivePlayer}
+                disabled={!selectedUserId || !selectedPlayerId}
+                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold"
+              >
+                Give {playerFilter === 'FOOTBALLER' ? 'Footballer' : playerFilter === 'FESTIVAL' ? 'Artist' : 'Player/Artist'} to User
+              </button>
+            </div>
           </div>
         )}
 

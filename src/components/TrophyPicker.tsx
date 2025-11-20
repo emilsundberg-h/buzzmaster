@@ -7,6 +7,9 @@ interface Trophy {
   name: string
   imageKey: string
   description?: string | null
+  type?: 'TROPHY' | 'PLAYER'
+  playerId?: string
+  playerType?: 'FOOTBALLER' | 'FESTIVAL'
 }
 
 interface TrophyPickerProps {
@@ -29,7 +32,7 @@ export default function TrophyPicker({
 
   const fetchTrophies = async () => {
     try {
-      const response = await fetch('/api/trophies')
+      const response = await fetch('/api/trophies/all')
       if (response.ok) {
         const data = await response.json()
         setTrophies(data.trophies || [])
@@ -95,12 +98,21 @@ export default function TrophyPicker({
             }}
           >
             <div className="text-center">
+              {/* Icon for player type */}
+              {trophy.type === 'PLAYER' && (
+                <div className="text-lg mb-1">
+                  {trophy.playerType === 'FOOTBALLER' ? '⚽' : '🎵'}
+                </div>
+              )}
               <img
-                src={`/trophys/${trophy.imageKey}`}
+                src={`/${trophy.imageKey}`}
                 alt={trophy.name}
                 className="w-16 h-16 object-contain mx-auto mb-2"
               />
               <div className="text-xs font-medium">{trophy.name}</div>
+              {trophy.description && (
+                <div className="text-xs opacity-70 mt-1">{trophy.description}</div>
+              )}
             </div>
           </div>
         ))}

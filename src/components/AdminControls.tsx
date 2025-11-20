@@ -1,5 +1,7 @@
 'use client'
 
+import Image from "next/image"
+import { getAvatarPath } from "@/lib/avatar-helpers"
 import { useState } from 'react'
 import TrophyPicker from './TrophyPicker'
 
@@ -107,11 +109,24 @@ export default function AdminControls({
           {/* Trophy Picker - Before Enabling Buttons */}
           {isRoundActive && !currentRound?.buttonsEnabled && (
             <div className="p-4 rounded border-2" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--primary)' }}>
-              <TrophyPicker
-                selectedTrophyId={buttonsTrophyId}
-                onSelect={setButtonsTrophyId}
-                label="Välj trofé innan du enablerar knapparna (valfritt)"
-              />
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <TrophyPicker
+                    selectedTrophyId={buttonsTrophyId}
+                    onSelect={setButtonsTrophyId}
+                    label="Välj trofé innan du enablerar knapparna (valfritt)"
+                  />
+                </div>
+                {buttonsTrophyId && (
+                  <button
+                    onClick={() => setButtonsTrophyId(null)}
+                    className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                    title="Rensa trofé"
+                  >
+                    ✕ Rensa
+                  </button>
+                )}
+              </div>
             </div>
           )}
           
@@ -139,7 +154,7 @@ export default function AdminControls({
                 if (!currentRound?.buttonsEnabled) {
                   // Enabling buttons - send trophy
                   onToggleButtons(buttonsTrophyId)
-                  setButtonsTrophyId(null) // Reset after enabling
+                  // Keep trophy selected for next round unless admin changes it
                 } else {
                   // Disabling buttons - no trophy
                   onToggleButtons(null)
@@ -177,7 +192,7 @@ export default function AdminControls({
             <div key={user.id} className="flex items-center justify-between p-4 border rounded" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center space-x-4">
                 <img
-                  src={`/avatars/${user.avatarKey}.webp`}
+                  src={getAvatarPath(user.avatarKey)}
                   alt={user.username}
                   className="w-8 h-8 rounded-full"
                 />
@@ -236,7 +251,7 @@ export default function AdminControls({
               <div key={press.id} className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--input-bg)' }}>
                 <div className="flex items-center space-x-3">
                   <img
-                    src={`/avatars/${press.user.avatarKey}.webp`}
+                    src={getAvatarPath(press.user.avatarKey)}
                     alt={press.user.username}
                     className="w-6 h-6 rounded-full"
                   />

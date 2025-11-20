@@ -85,6 +85,50 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Map avatarKey to captain name
+    const captainMap: Record<string, string> = {
+      '01': 'Baggio',
+      '02': 'Beckham',
+      '03': 'Brolin',
+      '04': 'Giroud',
+      '05': 'Ronaldinho',
+      '06': 'Ronaldo',
+      '07': 'Totti',
+      '08': 'Zidane',
+    };
+
+    // Add captain to user's Dream Eleven if they don't have it
+    const captainName = captainMap[avatarKey];
+    if (captainName) {
+      const captain = await db.player.findFirst({
+        where: {
+          name: captainName,
+          category: 'CAPTAIN'
+        }
+      });
+
+      if (captain) {
+        // Check if user already owns this captain
+        const existing = await db.userPlayer.findFirst({
+          where: {
+            userId: user.id,
+            playerId: captain.id
+          }
+        });
+
+        if (!existing) {
+          // Add captain to user's collection
+          await db.userPlayer.create({
+            data: {
+              userId: user.id,
+              playerId: captain.id
+            }
+          });
+          console.log(`Added captain ${captainName} to user ${user.username}`);
+        }
+      }
+    }
+
     return NextResponse.json({ user });
   } catch (error) {
     console.error("Profile setup error:", error);

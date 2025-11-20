@@ -1,5 +1,6 @@
 'use client'
 
+import { getAvatarPath } from "@/lib/avatar-helpers";
 import Image from 'next/image'
 
 interface User {
@@ -21,7 +22,7 @@ export default function ScoreColumns({ users }: ScoreColumnsProps) {
           {/* Avatar */}
           <div className="relative w-16 h-16 rounded-full overflow-hidden border-2" style={{ borderColor: 'var(--border)' }}>
             <Image
-              src={`/avatars/${user.avatarKey}.webp`}
+              src={getAvatarPath(user.avatarKey)}
               alt={user.username}
               fill
               className="object-cover"

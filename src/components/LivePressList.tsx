@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 
 interface LivePressListProps {
   presses: Array<{
@@ -47,7 +48,7 @@ export default function LivePressList({ presses }: LivePressListProps) {
                 </div>
                 
                 <img
-                  src={`/avatars/${press.user.avatarKey}.webp`}
+                  src={getAvatarPath(press.user.avatarKey)}
                   alt={press.user.username}
                   className="w-10 h-10 rounded-full"
                 />

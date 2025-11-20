@@ -13,11 +13,15 @@ import TrophyDisplay from '@/components/TrophyDisplay'
 import TrophyAnimation from '@/components/TrophyAnimation'
 import Toast from '@/components/Toast'
 import ThumbGame from '@/components/ThumbGame'
+import DevDreamElevenModal from '@/components/DevDreamElevenModal'
+import FestivalPoster from '@/components/FestivalPoster'
+import MyArtistsView from '@/components/MyArtistsView'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme } from '@/contexts/ThemeContext'
 
 interface UserProfile {
   id: string
+  clerkId: string
   username: string
   avatarKey: string
   score: number
@@ -90,12 +94,16 @@ export default function DevUserPage() {
       const saved = localStorage.getItem('dev-user-id')
       if (saved) return saved
     }
-    // Otherwise generate a new one
-    return `dev-user-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Generate a new one if none exists
+    return `dev-user-${Math.random().toString(36).substring(2, 15)}`
   })
   const [loading, setLoading] = useState(true)
   const [pressing, setPressing] = useState(false)
   const [showRoomJoin, setShowRoomJoin] = useState(false)
+  const [showDreamEleven, setShowDreamEleven] = useState(false)
+  const [showFestival, setShowFestival] = useState(false)
+  const [showMyArtists, setShowMyArtists] = useState(false)
   const [showTrophyAnimation, setShowTrophyAnimation] = useState(false)
   const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string } | null>(null)
   const [trophyWins, setTrophyWins] = useState<Array<{ id: string; trophy: { name: string; imageKey: string }; wonAt: string }>>([])
@@ -131,12 +139,13 @@ export default function DevUserPage() {
       
       if (response.ok) {
         const data = await response.json()
+        console.log('Profile loaded:', data.user)
         setProfile(data.user)
       }
     } catch (error) {
       console.error('Failed to fetch profile:', error)
     }
-  }, [userId])
+  }, [userId, fetchWithUserId])
 
   const fetchUserPress = useCallback(async () => {
     try {
@@ -199,15 +208,18 @@ export default function DevUserPage() {
             // Reset timer and press when new round starts
             setMyPressTimerExpiresAt(null)
             setUserPress(null)
-            // If this user is the winner, get their press to set timer
-            if (actualMessage.data?.winnerUserId === profile?.id) {
-              console.log('User is winner, fetching press data for timer')
+            // Close Dream Eleven modal
+            setShowDreamEleven(false)
+            // If this user is the winner AND buttons are disabled, get their press to set timer
+            // Don't fetch if buttons are enabled - it means it's a fresh round
+            if (actualMessage.data?.winnerUserId === profile?.id && !actualMessage.data?.buttonsEnabled) {
+              console.log('User is winner with buttons disabled, fetching press data for timer')
               // Small delay to ensure press is saved to DB
               setTimeout(() => {
                 fetchUserPress()
               }, 100)
             } else {
-              // If user is NOT winner, clear timer
+              // If user is NOT winner or buttons are enabled (fresh round), clear timer
               setMyPressTimerExpiresAt(null)
             }
             break
@@ -215,19 +227,37 @@ export default function DevUserPage() {
           case 'buttons:disabled':
             console.log('WebSocket: Buttons event received (wrapped)')
             console.log('Buttons enabled:', actualMessage.data?.round?.buttonsEnabled)
-            // Update round status directly from WebSocket message
-            updateRoundFromMessage(actualMessage.data)
-            // Clear timer and press state when buttons are disabled
+            // Close Dream Eleven modal
+            setShowDreamEleven(false)
+            
+            // Clear timer and press state when buttons change state
             if (actualMessage.type === 'buttons:disabled') {
-              console.log('Buttons disabled - clearing press state and timer')
+              console.log('Buttons disabled - clearing press state, timer, AND winner')
+              // Update round status but clear winnerUserId for fresh question
+              const roundData = actualMessage.data?.round || actualMessage.data
+              if (roundData) {
+                setRoundStatus({ ...roundData, winnerUserId: null })
+              }
               setMyPressTimerExpiresAt(null)
               setUserPress(null)
+              setPressing(false) // Reset pressing state for next round
+            } else if (actualMessage.type === 'buttons:enabled') {
+              console.log('Buttons enabled - clearing OLD press state for fresh question')
+              // Update round status but clear winnerUserId for fresh question
+              const roundData = actualMessage.data?.round || actualMessage.data
+              if (roundData) {
+                setRoundStatus({ ...roundData, winnerUserId: null })
+              }
+              setMyPressTimerExpiresAt(null)
+              setUserPress(null)
+              setPressing(false) // Reset pressing state so user can press again
             }
             break
           case 'presses:cleared':
             console.log('WebSocket: Presses cleared event received')
             setUserPress(null)
             setMyPressTimerExpiresAt(null)
+            setPressing(false) // Reset pressing state
             break
           case 'round:ended':
             console.log('WebSocket: Round ended event received')
@@ -263,6 +293,8 @@ export default function DevUserPage() {
           case 'question:sent':
             console.log('WebSocket: Question sent event received')
             console.log('WebSocket: Trophy data:', actualMessage.data?.trophy)
+            // Close Dream Eleven modal
+            setShowDreamEleven(false)
             setCurrentQuestion(actualMessage.data?.question ? {
               ...actualMessage.data.question,
               competitionId: actualMessage.data.competitionId,
@@ -296,6 +328,10 @@ export default function DevUserPage() {
             }
             break
           case 'category-game:started':
+            console.log('WebSocket: Category game started - closing Dream Eleven modal')
+            setShowDreamEleven(false)
+            // Handled by CategoryGameDisplay component
+            break
           case 'category-game:next-player':
           case 'category-game:paused':
           case 'category-game:resumed':
@@ -308,6 +344,10 @@ export default function DevUserPage() {
             // These are handled by ChatMessenger component
             break
           case 'thumb-game:started':
+            console.log('WebSocket: Thumb game started - closing Dream Eleven modal')
+            setShowDreamEleven(false)
+            // Handled by ThumbGame component
+            break
           case 'thumb-game:updated':
           case 'thumb-game:ended':
             console.log('WebSocket: Thumb game event received:', actualMessage.type)
@@ -327,35 +367,54 @@ export default function DevUserPage() {
             // Reset timer and press when new round starts
             setMyPressTimerExpiresAt(null)
             setUserPress(null)
-            // If this user is the winner, get their press to set timer
-            if (lastMessage.data?.winnerUserId === profile?.id) {
-              console.log('User is winner, fetching press data for timer')
+            // If this user is the winner AND buttons are disabled, get their press to set timer
+            // Don't fetch if buttons are enabled - it means it's a fresh round
+            if (lastMessage.data?.winnerUserId === profile?.id && !lastMessage.data?.buttonsEnabled) {
+              console.log('User is winner with buttons disabled, fetching press data for timer')
               // Small delay to ensure press is saved to DB
               setTimeout(() => {
                 fetchUserPress()
               }, 100)
             } else {
-              // If user is NOT winner, clear timer
+              // If user is NOT winner or buttons are enabled (fresh round), clear timer
               setMyPressTimerExpiresAt(null)
             }
             break
           case 'buttons:enabled':
           case 'buttons:disabled':
-            console.log('WebSocket: Buttons event received')
+            console.log('WebSocket: Buttons event received - closing Dream Eleven modal')
             console.log('Buttons enabled:', lastMessage.data?.round?.buttonsEnabled)
-            // Update round status directly from WebSocket message
-            updateRoundFromMessage(lastMessage.data)
-            // Clear timer and press state when buttons are disabled
+            // Close Dream Eleven modal
+            setShowDreamEleven(false)
+            
+            // Clear timer and press state when buttons change state
             if (lastMessage.type === 'buttons:disabled') {
-              console.log('Buttons disabled - clearing press state and timer')
+              console.log('Buttons disabled - clearing press state, timer, AND winner')
+              // Update round status but clear winnerUserId for fresh question
+              const roundData = lastMessage.data?.round || lastMessage.data
+              if (roundData) {
+                setRoundStatus({ ...roundData, winnerUserId: null })
+              }
               setMyPressTimerExpiresAt(null)
               setUserPress(null)
+              setPressing(false) // Reset pressing state for next round
+            } else if (lastMessage.type === 'buttons:enabled') {
+              console.log('Buttons enabled - clearing OLD press state for fresh question')
+              // Update round status but clear winnerUserId for fresh question
+              const roundData = lastMessage.data?.round || lastMessage.data
+              if (roundData) {
+                setRoundStatus({ ...roundData, winnerUserId: null })
+              }
+              setMyPressTimerExpiresAt(null)
+              setUserPress(null)
+              setPressing(false) // Reset pressing state so user can press again
             }
             break
           case 'presses:cleared':
             console.log('WebSocket: Presses cleared event received (direct)')
             setUserPress(null)
             setMyPressTimerExpiresAt(null)
+            setPressing(false) // Reset pressing state
             break
           case 'round:ended':
             console.log('WebSocket: Round ended event received')
@@ -426,6 +485,10 @@ export default function DevUserPage() {
             }
             break
           case 'category-game:started':
+            console.log('WebSocket: Category game started (direct) - closing Dream Eleven modal')
+            setShowDreamEleven(false)
+            // Handled by CategoryGameDisplay component
+            break
           case 'category-game:next-player':
           case 'category-game:paused':
           case 'category-game:resumed':
@@ -438,12 +501,20 @@ export default function DevUserPage() {
             // These are handled by ChatMessenger component
             break
           case 'thumb-game:started':
+            console.log('WebSocket: Thumb game started (direct) - closing Dream Eleven modal')
+            setShowDreamEleven(false)
+            // Handled by ThumbGame component
+            break
           case 'thumb-game:updated':
           case 'thumb-game:ended':
             console.log('WebSocket: Thumb game event received (direct):', lastMessage.type)
             // These are handled by ThumbGame component
             break
           case 'challenge:started':
+            console.log('WebSocket: Challenge started (direct) - closing Dream Eleven modal')
+            setShowDreamEleven(false)
+            // Handled by ArkanoidChallenge and SimonChallenge components
+            break
           case 'challenge:betPlaced':
           case 'challenge:playerEliminated':
           case 'challenge:ended':
@@ -460,7 +531,7 @@ export default function DevUserPage() {
     }
   }, [lastMessage, currentRoom, updateRoundFromMessage, fetchUserPress, fetchProfile, fetchUserRoom])
 
-  const fetchRoundStatus = async () => {
+  const fetchRoundStatus = useCallback(async () => {
     try {
       // Only fetch round status if user is in a room
       if (!currentRoom) {
@@ -485,7 +556,20 @@ export default function DevUserPage() {
           console.log('Latest round startedAt:', latestRound.startedAt)
           console.log('Latest round endedAt:', latestRound.endedAt)
           console.log('Latest round buttonsEnabled:', latestRound.buttonsEnabled)
-          setRoundStatus(latestRound)
+          
+          // If buttons are enabled, clear old winner state (fresh question)
+          if (latestRound.buttonsEnabled) {
+            console.log('fetchRoundStatus: Buttons enabled - clearing old winner and press state')
+            setRoundStatus({
+              ...latestRound,
+              winnerUserId: null // Clear old winner for fresh question
+            })
+            setUserPress(null)
+            setMyPressTimerExpiresAt(null)
+            setPressing(false)
+          } else {
+            setRoundStatus(latestRound)
+          }
         } else {
           console.log('fetchRoundStatus: No rounds found, setting status to null')
           setRoundStatus(null)
@@ -495,7 +579,7 @@ export default function DevUserPage() {
     } catch (error) {
       console.error('Failed to fetch round status:', error)
     }
-  }
+  }, [currentRoom, fetchWithUserId])
 
   // Fetch trophy wins
   const fetchTrophyWins = useCallback(async () => {
@@ -530,9 +614,10 @@ export default function DevUserPage() {
   // Fetch round status when room changes
   useEffect(() => {
     if (currentRoom) {
+      console.log('useEffect: currentRoom changed, fetching round status')
       fetchRoundStatus()
     }
-  }, [currentRoom])
+  }, [currentRoom, fetchRoundStatus])
 
 
   const handleSetup = async () => {
@@ -811,36 +896,6 @@ export default function DevUserPage() {
       )}
 
       <div className="container mx-auto px-4 py-8">
-        {/* Won Trophies Accordion */}
-        {trophyWins.length > 0 && (
-          <div className="mb-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)' }}>
-            <button
-              onClick={() => setTrophiesAccordionOpen(!trophiesAccordionOpen)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-opacity-80 transition-colors"
-            >
-              <h3 className="text-sm font-semibold">🏆 My Trophys</h3>
-              <span className="text-sm opacity-60 transition-transform" style={{ transform: trophiesAccordionOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                ⌄
-              </span>
-            </button>
-            {trophiesAccordionOpen && (
-              <div className="px-4 pb-4">
-                <div className="flex flex-wrap gap-3">
-                  {trophyWins.map((win) => (
-                    <img
-                      key={win.id}
-                      src={`/trophys/${win.trophy.imageKey}`}
-                      alt={win.trophy.name}
-                      className="h-[22px] w-auto object-contain"
-                      title={`${win.trophy.name} - Vunnen ${new Date(win.wonAt).toLocaleDateString()}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">
@@ -854,25 +909,38 @@ export default function DevUserPage() {
               <p className="text-lg text-gray-600">
                 Room: <span className="font-bold text-green-600">{currentRoom.name}</span>
               </p>
-              <button
-                onClick={handleLeaveRoom}
-                className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-              >
-                Leave Room
-              </button>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <button
+                  onClick={handleLeaveRoom}
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Leave Room
+                </button>
+                <button
+                  onClick={() => setShowDreamEleven(true)}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold"
+                >
+                  ⚽ My Dream Eleven
+                </button>
+                <button
+                  onClick={() => setShowMyArtists(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 font-semibold"
+                >
+                  🎸 My Artists
+                </button>
+                <button
+                  onClick={() => setShowFestival(true)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-semibold"
+                >
+                  🎵 Festival Poster
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* Status */}
         <div className="text-center mb-8">
-          <div className="mb-4">
-            <span className={`px-3 py-1 rounded text-sm ${
-              isConnected ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-            }`}>
-              WebSocket: {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
           {roundStatus && roundStatus.startedAt && !roundStatus.endedAt ? (
             <div className="inline-block p-4 bg-white rounded-lg shadow">
               <p className="text-lg">
@@ -974,6 +1042,27 @@ export default function DevUserPage() {
           totalPlayers={currentRoom?.memberships?.length || 3}
         />
       )}
+
+      {/* Dream Eleven Modal */}
+      <DevDreamElevenModal 
+        isOpen={showDreamEleven}
+        onClose={() => setShowDreamEleven(false)}
+        userId={userId}
+      />
+
+      {/* My Artists View Modal */}
+      <MyArtistsView
+        userId={userId}
+        isOpen={showMyArtists}
+        onClose={() => setShowMyArtists(false)}
+      />
+
+      {/* Festival Poster Modal */}
+      <FestivalPoster
+        isOpen={showFestival}
+        onClose={() => setShowFestival(false)}
+        userId={userId}
+      />
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 
 interface BigBuzzerButtonProps {
   avatarKey: string
@@ -113,14 +114,9 @@ export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstP
   // Determine which image to show based on state
   // Show color version if user was first to press AND buttons are enabled AND timer hasn't expired
   // Otherwise show grayscale
-  let imageSrc: string
-  if (isFirstPress && areButtonsEnabled && !isTimerExpired) {
-    // Show color version if user was first to press, buttons are enabled, and timer hasn't expired
-    imageSrc = `/avatars/${avatarKey}.webp`
-  } else {
-    // Show grayscale version (disabled, not first, or timer expired)
-    imageSrc = `/avatars/${avatarKey}-gray.webp`
-  }
+  // Show color if user was first to press, buttons are enabled, and timer hasn't expired
+  const showColor = isFirstPress && areButtonsEnabled && !isTimerExpired
+  const imageSrc = getAvatarPath(avatarKey, showColor)
 
   return (
     <>

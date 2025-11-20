@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { getAvatarPath } from '@/lib/avatar-helpers'
 
 interface AnswerModalProps {
   press: {
@@ -65,7 +66,7 @@ export default function AnswerModal({ press, onClose, onSubmit, onGiveToNext }: 
         <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
             <img
-              src={`/avatars/${press.user.avatarKey}.webp`}
+              src={getAvatarPath(press.user.avatarKey)}
               alt={press.user.username}
               className="w-16 h-16 rounded-full"
             />

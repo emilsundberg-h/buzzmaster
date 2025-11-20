@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+
+// POST /api/players/give - Give a player/artist to a user
+export async function POST(req: NextRequest) {
+  try {
+    const { userId, playerId } = await req.json();
+
+    if (!userId || !playerId) {
+      return NextResponse.json({ error: 'userId and playerId required' }, { status: 400 });
+    }
+
+    // Find user
+    const user = await db.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Find player
+    const player = await db.player.findUnique({
+      where: { id: playerId },
+    });
+
+    if (!player) {
+      return NextResponse.json({ error: 'Player/Artist not found' }, { status: 404 });
+    }
+
+    // Check if user already owns this player
+    const existing = await db.userPlayer.findUnique({
+      where: {
+        userId_playerId: {
+          userId: user.id,
+          playerId: playerId,
+        },
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json({ 
+        error: `User already owns ${player.name}` 
+      }, { status: 400 });
+    }
+
+    // Give player to user
+    const userPlayer = await db.userPlayer.create({
+      data: {
+        userId: user.id,
+        playerId: playerId,
+        revealed: false, // For festival artists
+      },
+      include: {
+        player: true,
+      },
+    });
+
+    console.log(`Gave ${player.name} (${player.type}) to user ${user.username}`);
+
+    return NextResponse.json({ 
+      success: true, 
+      userPlayer,
+      message: `${player.name} given to ${user.username}` 
+    });
+  } catch (error) {
+    console.error('Error giving player:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

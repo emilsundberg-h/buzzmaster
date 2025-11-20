@@ -13,46 +13,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find competition for the room (get the latest one)
-    const competition = await db.competition.findFirst({
+    // Find the latest ACTIVE round for this room (across all competitions)
+    const latestActiveRound = await db.round.findFirst({
       where: {
-        roomId: roomId,
-        status: "ACTIVE",
+        endedAt: null, // Only active rounds
+        competition: {
+          roomId: roomId,
+          status: "ACTIVE",
+        },
       },
-      orderBy: { createdAt: "desc" }, // Get the most recent competition
+      include: {
+        competition: true,
+      },
+      orderBy: { startedAt: "desc" },
     });
 
     console.log(`API: Room competition fetch for roomId: ${roomId}`);
-    console.log(`API: Found competition:`, competition);
+    console.log(`API: Found latest active round:`, latestActiveRound);
 
-    if (!competition) {
-      console.log(`API: No active competition found for room ${roomId}`);
+    if (!latestActiveRound) {
+      console.log(`API: No active round found for room ${roomId}`);
       return NextResponse.json({ competition: null });
-    }
-
-    // Get latest round for this competition
-    let rounds: any[] = [];
-    try {
-      const latestRound = await db.round.findFirst({
-        where: { competitionId: competition.id },
-        orderBy: { startedAt: "desc" },
-      });
-      console.log(
-        `API: Found latest round for competition ${competition.id}:`,
-        latestRound
-      );
-      if (latestRound) {
-        rounds = [latestRound];
-      }
-    } catch (roundError) {
-      console.error("Error fetching rounds:", roundError);
-      rounds = [];
     }
 
     const result = {
       competition: {
-        ...competition,
-        rounds: rounds,
+        ...latestActiveRound.competition,
+        rounds: [latestActiveRound],
       },
     };
 

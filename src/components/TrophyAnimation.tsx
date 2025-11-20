@@ -108,7 +108,7 @@ export default function TrophyAnimation({
               
               <div className="trophy-image-container mb-4">
                 <img
-                  src={`/trophys/${trophyImageKey}`}
+                  src={`/${trophyImageKey}`}
                   alt={trophyName}
                   className="w-64 h-64 object-contain mx-auto"
                   style={{

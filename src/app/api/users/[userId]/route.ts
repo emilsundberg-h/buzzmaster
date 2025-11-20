@@ -38,7 +38,18 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Delete Dream Eleven data first (has foreign keys)
+    const userTeam = await db.userTeam.findUnique({
+      where: { userId },
+    });
+    
+    if (userTeam) {
+      await db.teamPosition.deleteMany({ where: { teamId: userTeam.id } });
+      await db.userTeam.delete({ where: { id: userTeam.id } });
+    }
+    
     await db.$transaction([
+      db.userPlayer.deleteMany({ where: { userId } }),
       db.messageRead.deleteMany({ where: { userId } }),
       db.message.deleteMany({
         where: {

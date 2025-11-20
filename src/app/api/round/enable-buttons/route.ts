@@ -30,25 +30,73 @@ export async function POST(request: NextRequest) {
     }
 
     // Enable buttons with optional trophy
+    // Separate handling for player trophies vs traditional trophies
+    const updateData: any = {
+      buttonsEnabled: true,
+    };
+    
+    if (trophyId) {
+      if (trophyId.startsWith('player_')) {
+        // Store player trophy ID separately
+        updateData.playerTrophyId = trophyId;
+        updateData.trophyId = null;
+      } else {
+        // Store traditional trophy ID
+        updateData.trophyId = trophyId;
+        updateData.playerTrophyId = null;
+      }
+    } else {
+      // Clear both trophy fields
+      updateData.trophyId = null;
+      updateData.playerTrophyId = null;
+    }
+    
     const updatedRound = await db.round.update({
       where: { id: activeRound.id },
-      data: {
-        buttonsEnabled: true,
-        trophyId: trophyId || null, // Set trophy when enabling buttons
-      },
-      include: {
-        trophy: true, // Include trophy information in broadcast
-      },
+      data: updateData,
     });
+
+    // Handle trophy information for broadcast
+    let trophyInfo = null;
+    if (trophyId) {
+      if (trophyId.startsWith('player_')) {
+        // Handle player trophy
+        const playerId = trophyId.replace('player_', '');
+        const player = await db.player.findUnique({
+          where: { id: playerId }
+        });
+        if (player) {
+          trophyInfo = {
+            id: trophyId,
+            name: player.name,
+            imageKey: player.imageKey,
+          };
+        }
+      } else {
+        // Handle traditional trophy
+        const trophy = await db.trophy.findUnique({
+          where: { id: trophyId }
+        });
+        if (trophy) {
+          trophyInfo = trophy;
+        }
+      }
+    }
 
     console.log(
       "Round updated with trophy:",
-      updatedRound.trophy?.name || "none"
+      trophyInfo?.name || "none"
     );
 
-    broadcast("buttons:enabled", { round: updatedRound });
+    // Create round object with trophy info for broadcast
+    const roundWithTrophy = {
+      ...updatedRound,
+      trophy: trophyInfo,
+    };
 
-    return NextResponse.json({ round: updatedRound });
+    broadcast("buttons:enabled", { round: roundWithTrophy });
+
+    return NextResponse.json({ round: roundWithTrophy });
   } catch (error) {
     console.error("Enable buttons error:", error);
     return NextResponse.json(

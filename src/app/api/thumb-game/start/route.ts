@@ -55,13 +55,13 @@ export async function POST(request: Request) {
     const memberships = competition?.room.memberships || [];
     const totalPlayers = memberships.length;
 
-    // Start thumb game
+    // Start thumb game (starter automatically responds)
     let updatedRound = await db.round.update({
       where: { id: activeRound.id },
       data: {
         thumbGameActive: true,
         thumbGameStarterId: userId,
-        thumbGameResponders: JSON.stringify([userId]), // Starter is automatically in
+        thumbGameResponders: JSON.stringify([userId]), // Starter automatically has thumb up
         thumbGameUsedBy: JSON.stringify([...usedBy, userId]),
       },
     });
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         broadcast("thumb-game:ended", {
           roundId: updatedRound.id,
           loserId: loserClerkId || loserDbId,
-          responders: [userId],
+          responders: [],
         });
         broadcast("scores:updated", {});
 
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     broadcast("thumb-game:started", {
       roundId: updatedRound.id,
       starterId: userId,
-      responders: [userId],
+      responders: [userId], // Starter's thumb is already up
     });
 
     return NextResponse.json({ success: true, round: updatedRound });

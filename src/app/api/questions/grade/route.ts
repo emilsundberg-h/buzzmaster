@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { broadcastToRoom } from "@/lib/websocket";
+import { addTrophyPlayerToDreamEleven } from "@/lib/trophy-helpers";
 
 // For manually grading free text answers
 export async function POST(request: NextRequest) {
@@ -122,6 +123,38 @@ export async function POST(request: NextRequest) {
                 trophy: true,
               },
             });
+
+            // Check if this is a player trophy (format: player_<playerId>)
+            if (usage.trophyId.startsWith('player_')) {
+              // Handle player trophy - add directly to user's collection
+              await addTrophyPlayerToDreamEleven(user.id, usage.trophyId);
+              
+              // Get player info for broadcast
+              const playerId = usage.trophyId.replace('player_', '');
+              const player = await db.player.findUnique({
+                where: { id: playerId }
+              });
+
+              if (player && usage.competition.room) {
+                console.log(`Broadcasting player:won for user ${user.username}`);
+                broadcastToRoom(usage.competition.room.id, {
+                  type: "trophy:won",
+                  data: {
+                    userId: user.id,
+                    username: user.username,
+                    trophy: {
+                      id: usage.trophyId,
+                      name: player.name,
+                      imageKey: player.imageKey,
+                    },
+                    roomId: usage.competition.room.id,
+                  },
+                });
+              }
+            } else {
+              // Handle traditional trophy - check if it's also a player (legacy support)
+              await addTrophyPlayerToDreamEleven(user.id, usage.trophyId);
+            }
 
             // Broadcast trophy win
             if (usage.competition.room) {
