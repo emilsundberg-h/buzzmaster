@@ -774,9 +774,10 @@ export default function DevAdminPage() {
       console.log('Fetching available players...')
       const response = await fetch('/api/players')
       const data = await response.json()
-      console.log('Players fetched:', data.length, 'players')
-      console.log('First few players:', data.slice(0, 3))
-      setAvailablePlayers(data)
+      const players = data.players || []
+      console.log('Players fetched:', players.length, 'players')
+      console.log('First few players:', players.slice(0, 3))
+      setAvailablePlayers(players)
     } catch (error) {
       console.error('Failed to fetch players:', error)
     }

@@ -2,8 +2,8 @@
 
 import Image from "next/image"
 import { getAvatarPath } from "@/lib/avatar-helpers"
-import { useState } from 'react'
-import TrophyPicker from './TrophyPicker'
+import { useState, useEffect } from 'react'
+import TrophyModal from './TrophyModal'
 
 interface AdminControlsProps {
   onStartRound: (timerEnabled: boolean, timerDuration: number) => void
@@ -49,6 +49,16 @@ export default function AdminControls({
   const [timerDisabled, setTimerDisabled] = useState(false) // Default timer is ON
   const [timerDuration, setTimerDuration] = useState(10) // Default 10 seconds
   const [buttonsTrophyId, setButtonsTrophyId] = useState<string | null>(null)
+  const [isTrophyModalOpen, setIsTrophyModalOpen] = useState(false)
+  const [selectedPlayerInfo, setSelectedPlayerInfo] = useState<{ name: string, type: string } | null>(null)
+
+  // Clear trophy selection when buttons are disabled, someone wins, or round ends
+  useEffect(() => {
+    if (currentRound && (!currentRound.buttonsEnabled || currentRound.winnerUserId || currentRound.endedAt)) {
+      setButtonsTrophyId(null)
+      setSelectedPlayerInfo(null)
+    }
+  }, [currentRound?.buttonsEnabled, currentRound?.winnerUserId, currentRound?.endedAt])
 
   const handleScoreChange = (userId: string, change: number) => {
     setScoreChanges(prev => ({
@@ -65,6 +75,26 @@ export default function AdminControls({
         ...prev,
         [userId]: 0
       }))
+    }
+  }
+
+  const handleTrophySelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
+    // Create a player trophy ID in the format expected by the backend
+    const trophyId = `player_${playerId}`
+    setButtonsTrophyId(trophyId)
+    
+    // Fetch player info for display
+    try {
+      const response = await fetch(`/api/players?type=${playerType}&category=AWARD`)
+      if (response.ok) {
+        const data = await response.json()
+        const player = data.players?.find((p: any) => p.id === playerId)
+        if (player) {
+          setSelectedPlayerInfo({ name: player.name, type: playerType })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch player info:', error)
     }
   }
 
@@ -106,25 +136,53 @@ export default function AdminControls({
           </div>
 
 
-          {/* Trophy Picker - Before Enabling Buttons */}
+          {/* Trophy Button - Before Enabling Buttons */}
           {isRoundActive && !currentRound?.buttonsEnabled && (
-            <div className="p-4 rounded border-2" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--primary)' }}>
-              <div className="flex items-start gap-2">
-                <div className="flex-1">
-                  <TrophyPicker
-                    selectedTrophyId={buttonsTrophyId}
-                    onSelect={setButtonsTrophyId}
-                    label="Välj trofé innan du enablerar knapparna (valfritt)"
-                  />
-                </div>
-                {buttonsTrophyId && (
-                  <button
-                    onClick={() => setButtonsTrophyId(null)}
-                    className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-                    title="Rensa trofé"
-                  >
-                    ✕ Rensa
-                  </button>
+            <div className="p-4 rounded border-2" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsTrophyModalOpen(true)}
+                  className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 border-2 transition-colors"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                    backgroundColor: 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)'
+                    e.currentTarget.style.backgroundColor = 'var(--input-bg)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border)'
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
+                >
+                  🏆 Trophys
+                </button>
+                
+                {selectedPlayerInfo && (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg border-2" style={{ borderColor: 'var(--primary)', backgroundColor: 'var(--input-bg)' }}>
+                    <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                      {selectedPlayerInfo.type === 'FOOTBALLER' ? '⚽' : '🎵'} {selectedPlayerInfo.name}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setButtonsTrophyId(null)
+                        setSelectedPlayerInfo(null)
+                      }}
+                      className="font-bold hover:opacity-70"
+                      style={{ color: 'var(--primary)' }}
+                      title="Rensa trofé"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                
+                {!selectedPlayerInfo && (
+                  <span className="text-sm opacity-70" style={{ color: 'var(--foreground)' }}>
+                    Välj en trofé innan du enablerar knapparna (valfritt)
+                  </span>
                 )}
               </div>
             </div>
@@ -156,8 +214,10 @@ export default function AdminControls({
                   onToggleButtons(buttonsTrophyId)
                   // Keep trophy selected for next round unless admin changes it
                 } else {
-                  // Disabling buttons - no trophy
+                  // Disabling buttons - clear trophy selection
                   onToggleButtons(null)
+                  setButtonsTrophyId(null)
+                  setSelectedPlayerInfo(null)
                 }
               }}
               disabled={!isRoundActive}
@@ -265,6 +325,13 @@ export default function AdminControls({
           </div>
         )}
       </div>
+
+      {/* Trophy Modal */}
+      <TrophyModal
+        isOpen={isTrophyModalOpen}
+        onClose={() => setIsTrophyModalOpen(false)}
+        onSelect={handleTrophySelect}
+      />
     </div>
   )
 }

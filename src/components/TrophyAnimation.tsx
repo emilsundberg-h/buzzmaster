@@ -106,21 +106,27 @@ export default function TrophyAnimation({
                 🏆 GRATTIS! 🏆
               </h2>
               
-              <div className="trophy-image-container mb-4">
+              <div className="trophy-image-container mb-4 relative">
                 <img
                   src={`/${trophyImageKey}`}
-                  alt={trophyName}
-                  className="w-64 h-64 object-contain mx-auto"
+                  alt="Mystery prize"
+                  className="w-64 h-64 object-cover mx-auto rounded-lg"
                   style={{
-                    filter: 'drop-shadow(0 10px 30px rgba(255, 215, 0, 0.5))',
+                    filter: 'blur(20px) brightness(0.7) drop-shadow(0 10px 30px rgba(255, 215, 0, 0.5))',
                     animation: 'float 2s ease-in-out infinite'
                   }}
                 />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-8xl">❓</div>
+                </div>
               </div>
               
-              <h3 className="text-3xl font-bold text-white">
-                {trophyName}
+              <h3 className="text-2xl font-bold text-white opacity-70">
+                Mystisk Artist
               </h3>
+              <p className="text-sm text-white/60 mt-2">
+                Avslöja på festivalposter
+              </p>
             </div>
           </div>
         )}

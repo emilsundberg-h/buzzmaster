@@ -59,78 +59,109 @@ export default function FestivalPoster({ isOpen, onClose, userId }: FestivalPost
         onClick={onClose}
       />
 
-      {/* Poster */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      {/* Poster - Full screen mobile optimized */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
         <div 
-          className="relative w-full max-w-3xl aspect-[3/4] pointer-events-auto"
+          className="relative w-full pointer-events-auto"
+          style={{ height: '100dvh' }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Poster background with gradient similar to Way Out West */}
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-300 via-purple-400 to-blue-900 rounded-lg shadow-2xl overflow-hidden">
+          {/* Poster background with gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-300 via-purple-400 to-blue-900 overflow-hidden">
             
             {/* Close button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 z-10 text-white/80 hover:text-white text-3xl leading-none bg-black/30 rounded-full w-10 h-10 flex items-center justify-center"
+              className="absolute top-2 right-2 z-10 text-white/90 hover:text-white text-2xl leading-none bg-purple-600/50 rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm"
             >
               ×
             </button>
 
             {/* Header */}
             <div className="absolute top-8 left-0 right-0 text-center">
-              <h2 className="text-white text-sm tracking-widest mb-2">LUGER PRESENTS</h2>
+              <h2 className="text-white/90 text-xs tracking-[0.3em] font-light">HEALTHY MOUNTAIN PRESENTS</h2>
             </div>
 
             {/* Artist names in festival poster style */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 pt-24 pb-20">
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-6 pt-20 pb-32">
               {loading ? (
                 <p className="text-white text-xl">Loading...</p>
               ) : revealedArtists.length === 0 ? (
                 <div className="text-center text-white/80">
-                  <p className="text-2xl mb-2">🎵</p>
-                  <p className="text-lg">No artists revealed yet!</p>
-                  <p className="text-sm mt-2">Win artists in games and reveal them to see your lineup</p>
+                  <p className="text-4xl mb-3">🎵</p>
+                  <p className="text-xl font-bold mb-2">No artists revealed yet!</p>
+                  <p className="text-sm">Win artists in games and reveal them to see your lineup</p>
                 </div>
               ) : (
-                <div className="w-full space-y-1 overflow-y-auto">
-                  {sortedArtists.map((artist, index) => {
-                    // Vary font sizes for visual interest
-                    const fontSize = index % 3 === 0 ? 'text-5xl' : index % 2 === 0 ? 'text-4xl' : 'text-3xl'
-                    const opacity = index % 2 === 0 ? 'text-white' : 'text-white/90'
-                    const fontWeight = index % 3 === 0 ? 'font-black' : 'font-bold'
-                    
-                    return (
-                      <div key={artist.id} className="text-center">
-                        <h3 className={`${fontSize} ${opacity} ${fontWeight} uppercase tracking-tight leading-none`}>
+                <div className="w-full overflow-y-auto scrollbar-hide px-3" style={{ maxHeight: 'calc(100dvh - 240px)' }}>
+                  <div className="space-y-0.5">
+                    {sortedArtists.map((artist, index) => {
+                      // Determine size and opacity based on position
+                      let baseFontSize, fontWeight, opacity
+                      if (index < 3) {
+                        baseFontSize = 'clamp(2rem, 10vw, 4rem)'
+                        fontWeight = '900'
+                        opacity = index % 2 === 0 ? 1 : 0.9
+                      } else if (index < 7) {
+                        baseFontSize = 'clamp(1.5rem, 7vw, 3rem)'
+                        fontWeight = '700'
+                        opacity = index % 3 === 0 ? 0.8 : 0.95
+                      } else {
+                        baseFontSize = 'clamp(1.2rem, 5vw, 2rem)'
+                        fontWeight = '600'
+                        opacity = index % 4 === 0 ? 0.75 : index % 3 === 0 ? 0.8 : index % 2 === 0 ? 0.9 : 0.95
+                      }
+                      
+                      return (
+                        <div 
+                          key={artist.id} 
+                          className="w-full text-white font-black uppercase tracking-tighter text-center leading-none"
+                          style={{ 
+                            fontSize: baseFontSize,
+                            fontWeight,
+                            textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                            opacity
+                          }}
+                        >
                           {artist.player.name}
-                        </h3>
-                      </div>
-                    )
-                  })}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="absolute bottom-8 left-0 right-0 text-center">
-              <div className="text-white/80 text-xs tracking-wider mb-4">
-                MORE ARTISTS TO BE ANNOUNCED SOON
+            <div className="absolute bottom-0 left-0 right-0 pb-6">
+              <div className="text-white/70 text-[10px] tracking-widest mb-3 text-center font-light">
+                WILL MORE ARTISTS BE ANNOUNCED SOON?
               </div>
-              <div className="flex justify-between items-center px-8 text-white">
+              <div className="flex justify-between items-end px-6 text-white">
                 <div className="text-left">
-                  <div className="text-2xl font-black">MY SECRET</div>
-                  <div className="text-2xl font-black">FESTIVAL</div>
-                  <div className="text-sm">2025 7—9 AUG</div>
+                  <div className="text-xl font-black leading-tight">MY SECRET</div>
+                  <div className="text-xl font-black leading-tight">FESTIVAL</div>
+                  <div className="text-[11px] mt-1 font-light">2025 29 NOV</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm">TICKETS AT:</div>
-                  <div className="text-lg font-bold">BUZZMASTER.SE</div>
+                  <div className="text-[10px] font-light tracking-wider">TICKETS AT:</div>
+                  <div className="text-base font-bold">BUZZMASTER.SE</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </>
   )
 }
