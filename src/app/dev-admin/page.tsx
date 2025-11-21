@@ -68,6 +68,7 @@ export default function DevAdminPage() {
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null)
   const [currentRound, setCurrentRound] = useState<Round | null>(null)
   const [currentCompetitionId, setCurrentCompetitionId] = useState<string | null>(null)
+  const [festivalPosterEnabled, setFestivalPosterEnabled] = useState(false)
   
   // Debug currentRound changes
   useEffect(() => {
@@ -293,8 +294,11 @@ export default function DevAdminPage() {
                 case 'room:memberKicked':
                   fetchRooms()
                   break
-                case 'competition:created':
-                  console.log('WebSocket: Competition created event received')
+                case 'festival-poster:toggled':
+                  console.log('WebSocket: Festival poster toggled event received (wrapped)', actualMessage.data?.enabled)
+                  if (typeof actualMessage.data?.enabled === 'boolean') {
+                    setFestivalPosterEnabled(actualMessage.data.enabled)
+                  }
                   break
                 case 'question:answered':
                   console.log('WebSocket: Question answered event received')
@@ -419,6 +423,12 @@ export default function DevAdminPage() {
                   // Trigger refresh of questions to show new answers
                   setQuestionRefreshTrigger(prev => prev + 1)
                   break
+                case 'festival-poster:toggled':
+                  console.log('WebSocket: Festival poster toggled event received (direct)', lastMessage.data?.enabled)
+                  if (typeof lastMessage.data?.enabled === 'boolean') {
+                    setFestivalPosterEnabled(lastMessage.data.enabled)
+                  }
+                  break
                 case 'chat:message':
                 case 'chat:poke':
                   // These are handled by ChatMessenger component
@@ -474,11 +484,16 @@ export default function DevAdminPage() {
       const response = await fetch(`/api/room/competition?roomId=${currentRoom.id}`)
       const data = await response.json()
       
-      if (data.competition && data.competition.rounds && Array.isArray(data.competition.rounds) && data.competition.rounds.length > 0) {
-        const latestRound = data.competition.rounds[0]
-        setCurrentRound(latestRound)
-      } else {
-        setCurrentRound(null)
+      if (data.competition) {
+        setCurrentCompetitionId(data.competition.id)
+        setFestivalPosterEnabled(data.competition.festivalPosterEnabled || false)
+        
+        if (data.competition.rounds && Array.isArray(data.competition.rounds) && data.competition.rounds.length > 0) {
+          const latestRound = data.competition.rounds[0]
+          setCurrentRound(latestRound)
+        } else {
+          setCurrentRound(null)
+        }
       }
     } catch (error) {
       console.error('Failed to fetch round status:', error)
@@ -521,7 +536,9 @@ export default function DevAdminPage() {
 
   // Fetch round status when room changes
   useEffect(() => {
-    // Don't call fetchRoundStatus here - let SSE events handle round updates
+    if (currentRoom) {
+      fetchRoundStatus()
+    }
   }, [currentRoom])
 
   const handleStartRound = async (timerEnabled: boolean, timerDuration: number) => {
@@ -765,6 +782,33 @@ export default function DevAdminPage() {
     } catch (error) {
       console.error('Delete user failed:', error)
       alert('Failed to delete user')
+    }
+  }
+
+  const handleToggleFestivalPoster = async (enabled: boolean) => {
+    if (!currentCompetitionId) {
+      alert('No active competition found')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/competition/toggle-festival-poster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ competitionId: currentCompetitionId, enabled })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.error || 'Failed to toggle festival poster')
+        return
+      }
+
+      const data = await response.json()
+      setFestivalPosterEnabled(data.festivalPosterEnabled)
+    } catch (error) {
+      console.error('Toggle festival poster failed:', error)
+      alert('Failed to toggle festival poster')
     }
   }
 
@@ -1083,6 +1127,9 @@ export default function DevAdminPage() {
             onEndRound={handleEndRound}
             onUpdateScore={handleUpdateScore}
             onDeleteUser={handleDeleteUser}
+            competitionId={currentCompetitionId || ''}
+            festivalPosterEnabled={festivalPosterEnabled}
+            onToggleFestivalPoster={handleToggleFestivalPoster}
             users={currentRoom?.memberships?.map((m: Membership) => m.user) || []}
              currentRound={currentRound || undefined}
             recentPresses={recentPresses}

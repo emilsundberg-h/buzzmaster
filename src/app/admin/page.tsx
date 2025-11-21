@@ -38,6 +38,8 @@ export default function AdminPage() {
   const [currentRound, setCurrentRound] = useState<Round | null>(null)
   const [recentPresses, setRecentPresses] = useState<Press[]>([])
   const [loading, setLoading] = useState(true)
+  const [competitionId, setCompetitionId] = useState<string | null>(null)
+  const [festivalPosterEnabled, setFestivalPosterEnabled] = useState(false)
 
   // SSE connection
   useEffect(() => {
@@ -62,6 +64,9 @@ export default function AdminPage() {
           break
         case 'scores:updated':
           fetchScoreboard()
+          break
+        case 'festival-poster:toggled':
+          setFestivalPosterEnabled(data.enabled)
           break
       }
     }
@@ -90,9 +95,13 @@ export default function AdminPage() {
       
       if (data.competitions.length > 0) {
         const activeCompetition = data.competitions.find((c: any) => c.status === 'ACTIVE')
-        if (activeCompetition && activeCompetition.rounds.length > 0) {
-          const latestRound = activeCompetition.rounds[0]
-          setCurrentRound(latestRound)
+        if (activeCompetition) {
+          setCompetitionId(activeCompetition.id)
+          setFestivalPosterEnabled(activeCompetition.festivalPosterEnabled || false)
+          if (activeCompetition.rounds.length > 0) {
+            const latestRound = activeCompetition.rounds[0]
+            setCurrentRound(latestRound)
+          }
         }
       }
     } catch (error) {
@@ -301,6 +310,33 @@ export default function AdminPage() {
     }
   }
 
+  const handleToggleFestivalPoster = async (enabled: boolean) => {
+    if (!competitionId) {
+      alert('No active competition found')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/competition/toggle-festival-poster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ competitionId, enabled })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.error || 'Failed to toggle festival poster')
+        return
+      }
+
+      const data = await response.json()
+      setFestivalPosterEnabled(data.festivalPosterEnabled)
+    } catch (error) {
+      console.error('Toggle festival poster failed:', error)
+      alert('Failed to toggle festival poster')
+    }
+  }
+
   if (!isLoaded || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -344,6 +380,9 @@ export default function AdminPage() {
             onEndRound={handleEndRound}
             onUpdateScore={handleUpdateScore}
             onDeleteUser={handleDeleteUser}
+            competitionId={competitionId || ''}
+            festivalPosterEnabled={festivalPosterEnabled}
+            onToggleFestivalPoster={handleToggleFestivalPoster}
             users={users}
             currentRound={currentRound || undefined}
             recentPresses={recentPresses}

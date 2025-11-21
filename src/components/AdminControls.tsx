@@ -11,6 +11,9 @@ interface AdminControlsProps {
   onEndRound: () => void
   onUpdateScore: (userId: string, change: number) => void
   onDeleteUser: (userId: string) => void
+  competitionId: string
+  festivalPosterEnabled: boolean
+  onToggleFestivalPoster: (enabled: boolean) => void
   users: Array<{
     id: string
     username: string
@@ -41,6 +44,9 @@ export default function AdminControls({
   onEndRound,
   onUpdateScore,
   onDeleteUser,
+  competitionId,
+  festivalPosterEnabled,
+  onToggleFestivalPoster,
   users,
   currentRound,
   recentPresses
@@ -240,6 +246,31 @@ export default function AdminControls({
               )}
             </div>
           )}
+
+          {/* Festival Poster Toggle */}
+          <div className="mt-4 p-4 rounded border-2" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎵</span>
+                <span className="font-medium">Festival Poster</span>
+              </div>
+              <button
+                onClick={() => onToggleFestivalPoster(!festivalPosterEnabled)}
+                className={`px-6 py-2 rounded-lg font-medium border-2 transition-colors ${
+                  festivalPosterEnabled 
+                    ? 'bg-green-500 text-white border-green-600 hover:bg-green-600' 
+                    : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+                }`}
+              >
+                {festivalPosterEnabled ? '✓ Aktiverad' : 'Aktivera'}
+              </button>
+            </div>
+            <p className="text-sm mt-2 opacity-70">
+              {festivalPosterEnabled 
+                ? 'Spelare kan nu se festivalposter under Spelat' 
+                : 'Aktivera för att visa festivalposter för spelare'}
+            </p>
+          </div>
         </div>
       </div>
 

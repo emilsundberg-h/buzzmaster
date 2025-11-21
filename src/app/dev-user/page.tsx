@@ -108,6 +108,7 @@ export default function DevUserPage() {
   const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string } | null>(null)
   const [trophyWins, setTrophyWins] = useState<Array<{ id: string; trophy: { name: string; imageKey: string }; wonAt: string }>>([])
   const [trophiesAccordionOpen, setTrophiesAccordionOpen] = useState(true) // Default to open
+  const [festivalPosterEnabled, setFestivalPosterEnabled] = useState(false)
 
   // Custom fetch wrapper that adds userId header
   const fetchWithUserId = useCallback(async (url: string, options: RequestInit = {}) => {
@@ -484,6 +485,12 @@ export default function DevUserPage() {
               setTheme(lastMessage.data.theme)
             }
             break
+          case 'festival-poster:toggled':
+            console.log('WebSocket: Festival poster toggled event received (direct)', lastMessage.data?.enabled)
+            if (typeof lastMessage.data?.enabled === 'boolean') {
+              setFestivalPosterEnabled(lastMessage.data.enabled)
+            }
+            break
           case 'category-game:started':
             console.log('WebSocket: Category game started (direct) - closing Dream Eleven modal')
             setShowDreamEleven(false)
@@ -547,8 +554,9 @@ export default function DevUserPage() {
       console.log('fetchRoundStatus: API response:', data)
       
       if (data.competition) {
-        // Save competition ID
+        // Save competition ID and festival poster enabled state
         setCurrentCompetitionId(data.competition.id)
+        setFestivalPosterEnabled(data.competition.festivalPosterEnabled || false)
         
         if (data.competition.rounds && Array.isArray(data.competition.rounds) && data.competition.rounds.length > 0) {
           const latestRound = data.competition.rounds[0]
@@ -928,12 +936,14 @@ export default function DevUserPage() {
                 >
                   🎸 My Artists
                 </button>
-                <button
-                  onClick={() => setShowFestival(true)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-semibold"
-                >
-                  🎵 Festival Poster
-                </button>
+                {festivalPosterEnabled && (
+                  <button
+                    onClick={() => setShowFestival(true)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-semibold"
+                  >
+                    🎵 Festival Poster
+                  </button>
+                )}
               </div>
             </div>
           )}

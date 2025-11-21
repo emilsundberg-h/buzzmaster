@@ -73,6 +73,7 @@ model Competition {
   name       String
   status     CompetitionStatus @default(DRAFT)
   createdAt  DateTime @default(now())
+  festivalPosterEnabled Boolean @default(false)
   rounds     Round[]
   questionUsages QuestionUsage[]
   categoryGames CategoryGame[]
