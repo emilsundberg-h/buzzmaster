@@ -100,7 +100,13 @@ export async function POST(req: NextRequest) {
       console.log(`Should end: ${shouldEnd}`)
 
       if (shouldEnd) {
-        const survivor = newAlive.length === 1 ? newAlive[0] : null
+        // In chill mode, when everyone has been eliminated, the last person to die (current player) is the winner
+        // In normal mode, the last survivor wins
+        const survivor = chillMode && newAlive.length === 0 
+          ? clerkId  // Last person to die wins in chill mode
+          : newAlive.length === 1 
+            ? newAlive[0]  // Last survivor wins in normal mode
+            : null  // No winner if everyone died in normal mode (shouldn't happen)
 
         // Build participants list ONLY from players who actually played (in alive list at start)
         const startedAlive = JSON.parse(challenge.alive || "[]")
@@ -112,13 +118,29 @@ export async function POST(req: NextRequest) {
         }))
         console.log('Challenge ended. Participants who played:', participants.map((p: any) => p.clerkId))
         const ranking = rankAndPoints(participants, survivor)
+        
+        // Add usernames to ranking for display
+        const rankingWithUsernames = ranking.map((r: any) => {
+          const membership = (challenge.room.memberships || []).find((m: any) => m.user.clerkId === r.clerkId)
+          return {
+            ...r,
+            username: membership?.user?.username || 'Unknown',
+            avatarKey: membership?.user?.avatarKey || '01'
+          }
+        })
+        
+        // Find winner username for better logging
+        const winnerMembership = survivor ? (challenge.room.memberships || []).find((m: any) => m.user.clerkId === survivor) : null
+        const winnerUsername = winnerMembership?.user?.username || 'No winner'
+        const winnerContext = chillMode && newAlive.length === 0 ? 'last to be eliminated' : 'last survivor'
+        console.log(`🏆 Challenge winner (${winnerContext}): ${winnerUsername} (${survivor || 'none'})`)
 
         // Parse bets to handle all-in wagers
         const bets = JSON.parse(challenge.bets || "{}")
         console.log('Bets from challenge:', bets)
 
         // Apply points to users with bet logic
-        for (const r of ranking) {
+        for (const r of rankingWithUsernames) {
           const membership = (challenge.room.memberships || []).find((m: any) => m.user.clerkId === r.clerkId)
           if (membership?.userId) {
             const bet = bets[r.clerkId]
@@ -156,7 +178,7 @@ export async function POST(req: NextRequest) {
         broadcast("challenge:ended", {
           id: challenge.id,
           winnerId: survivor,
-          ranking,
+          ranking: rankingWithUsernames,
         })
         broadcast("scores:updated", {})
 

@@ -184,8 +184,23 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
       }).catch(() => {})
     }
     if (actual.type === 'challenge:ended') {
+      console.log('🏁 Challenge ended received:', { 
+        eventChallengeId: actual.data?.id, 
+        currentChallengeId: challenge.id,
+        winnerId: actual.data?.winnerId,
+        currentUserId: currentUserId,
+        match: actual.data?.winnerId === currentUserId,
+        challengeActive: challenge.active
+      })
+      
       // Only react if this is OUR challenge (not another challenge type)
-      if (actual.data?.id !== challenge.id) return
+      if (actual.data?.id !== challenge.id) {
+        console.log('⚠️ Challenge ID mismatch, ignoring', {
+          expected: challenge.id,
+          received: actual.data?.id
+        })
+        return
+      }
       
       setChallenge(prev => ({ ...prev, active: false }))
       // stop game loop
@@ -195,15 +210,23 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
       const winnerId = actual.data?.winnerId
       const rankingData = actual.data?.ranking || []
       setRanking(rankingData)
+      console.log('📊 Ranking:', rankingData)
       
       if (winnerId === currentUserId) {
+        console.log('🏆 Current user is the winner! Showing winner modal')
         // Winner: hide eliminated modal and show winner modal
         setEliminated(false)
         setShowWinner(true)
         setTimeout(() => setShowWinner(false), 5000)
+      } else {
+        console.log('❌ Current user is not the winner:', { 
+          winnerId: winnerId || 'none', 
+          currentUserId,
+          winnerUsername: winnerId ? rankingData.find((r: any) => r.clerkId === winnerId)?.username : 'no winner'
+        })
       }
     }
-  }, [onWebSocketMessage, currentRoomId])
+  }, [onWebSocketMessage, currentRoomId, currentUserId, challenge.id])
 
   // Update waiting countdown display
   useEffect(() => {
@@ -273,11 +296,20 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
 
     // Bricks
     const bricks: { x: number; y: number; alive: boolean }[] = []
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        bricks.push({ x: offsetLeft + c * brickW, y: offsetTop + r * brickH, alive: true })
+    
+    // Function to regenerate bricks
+    const regenerateBricks = () => {
+      bricks.length = 0 // Clear array
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          bricks.push({ x: offsetLeft + c * brickW, y: offsetTop + r * brickH, alive: true })
+        }
       }
+      console.log('🧱 New bricks generated!')
     }
+    
+    // Initialize bricks
+    regenerateBricks()
 
     // Paddle
     const paddleW = challenge.config?.paddleWidth ?? 72
@@ -288,7 +320,8 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
     // Ball
     let x = logicalWidth / 2
     let y = logicalHeight / 2
-    const speed = challenge.config?.ballSpeed ?? 200 // px/s
+    let speed = challenge.config?.ballSpeed ?? 200 // px/s - will increase over time
+    const initialSpeed = speed
     let angle = (Math.PI / 4) + rand() * (Math.PI / 2) // 45-135 degrees
     let vx = Math.cos(angle) * speed
     let vy = Math.sin(angle) * speed
@@ -318,7 +351,12 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
 
     // Loop
     let last = performance.now()
+    let lastLogTime = 0
     let raf = 0
+    
+    const gameDifficulty = challenge.config?.difficulty || 'medium'
+    console.log(`🎮 Arkanoid started! Difficulty: ${gameDifficulty.toUpperCase()}, Initial speed: ${speed} px/s`)
+    
     const step = (now: number) => {
       const dt = (now - last) / 1000
       last = now
@@ -326,16 +364,48 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
       // physics
       x += vx * dt
       y += vy * dt
+      
+      // Increase speed over time (accelerate based on difficulty)
+      const oldSpeed = speed
+      const difficulty = challenge.config?.difficulty || 'medium'
+      const accelerationRates = {
+        medium: 8,   // +8 px/s per second
+        hard: 15,    // +15 px/s per second
+        extreme: 25  // +25 px/s per second
+      }
+      speed += dt * accelerationRates[difficulty as keyof typeof accelerationRates]
+      // No cap - speed keeps increasing!
+      
+      // Debug: Log speed every second
+      const currentSecond = Math.floor(now / 1000)
+      if (currentSecond > lastLogTime) {
+        console.log(`⚡ Ball speed: ${Math.round(speed)} px/s (${(speed/initialSpeed).toFixed(1)}x)`)
+        lastLogTime = currentSecond
+      }
+      
+      // Update velocity vectors to match new speed
+      if (oldSpeed > 0 && speed !== oldSpeed) {
+        const ratio = speed / oldSpeed
+        vx *= ratio
+        vy *= ratio
+      }
 
-      // walls
-      if (x < 0) { x = 0; vx = Math.abs(vx) }
-      if (x > logicalWidth) { x = logicalWidth; vx = -Math.abs(vx) }
-      if (y < 0) { y = 0; vy = Math.abs(vy) }
+      // walls (ball radius is 6)
+      const ballRadius = 6
+      if (x < ballRadius) { x = ballRadius; vx = Math.abs(vx) }
+      if (x > logicalWidth - ballRadius) { x = logicalWidth - ballRadius; vx = -Math.abs(vx) }
+      if (y < ballRadius) { y = ballRadius; vy = Math.abs(vy) }
 
       // paddle collision
       if (y >= paddleY - 6 && y <= paddleY + paddleH && x >= paddleX && x <= paddleX + paddleW && vy > 0) {
         y = paddleY - 6
         vy = -Math.abs(vy)
+        
+        // Boost speed when hitting paddle (based on difficulty)
+        const paddleBoosts = { medium: 5, hard: 10, extreme: 18 }
+        speed += paddleBoosts[difficulty as keyof typeof paddleBoosts]
+        // No cap - keeps getting faster!
+        
         // tweak based on hit position
         const hit = (x - (paddleX + paddleW / 2)) / (paddleW / 2)
         vx = speed * hit
@@ -348,13 +418,29 @@ export default function ArkanoidChallenge({ currentUserId, currentRoomId, roundA
         if (!b.alive) continue
         if (x >= b.x && x <= b.x + brickW && y >= b.y && y <= b.y + brickH) {
           b.alive = false
-          vy = -vy
           bricksCleared++
           score += 10
           bricksRef.current = bricksCleared
           scoreRef.current = score
+          
+          // Speed boost when breaking bricks (based on difficulty)
+          const preBoostSpeed = speed
+          const brickBoosts = { medium: 3, hard: 6, extreme: 10 }
+          speed += brickBoosts[difficulty as keyof typeof brickBoosts]
+          // No cap - keeps accelerating!
+          
+          // Update velocities with new speed
+          const ratio = speed / preBoostSpeed
+          vx *= ratio
+          vy = -vy * ratio // Reverse Y direction on brick hit
           break
         }
+      }
+
+      // Check if all bricks are destroyed and regenerate
+      const allBricksDestroyed = bricks.every(b => !b.alive)
+      if (allBricksDestroyed) {
+        regenerateBricks()
       }
 
       // death

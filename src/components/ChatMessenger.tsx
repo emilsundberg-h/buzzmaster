@@ -237,14 +237,26 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
     } else if (lastWebSocketMessage.type === 'chat:poke') {
       const poke: Poke = lastWebSocketMessage.data.poke
       
+      console.log('🔔 Poke received:', {
+        pokeReceiverClerkId: poke.receiverClerkId,
+        currentUserId: currentUserId,
+        match: poke.receiverClerkId === currentUserId,
+        sender: poke.senderUsername
+      })
+      
       // Check if poke is for me
       if (poke.receiverClerkId === currentUserId) {
+        console.log('🔔 POKE IS FOR ME! Showing notification')
         setPokeFrom(poke.senderUsername)
         setShowPoke(true)
+        
+        // Apply shake to body
+        document.body.classList.add('screen-shake')
         
         // Hide after 3 seconds
         setTimeout(() => {
           setShowPoke(false)
+          document.body.classList.remove('screen-shake')
         }, 3000)
 
         // Mark as seen
@@ -256,6 +268,8 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
           },
           body: JSON.stringify({ pokeId: poke.id })
         })
+      } else {
+        console.log('🔔 Poke is not for me, ignoring')
       }
     }
   }, [lastWebSocketMessage, activeChat, currentUserId])
@@ -322,19 +336,13 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
   return (
     <>
       {/* Hide scrollbars and add animations */}
-      <style jsx>{`
+      <style>{`
         .chat-scrollable {
           scrollbar-width: none; /* Firefox */
           -ms-overflow-style: none; /* IE/Edge */
         }
         .chat-scrollable::-webkit-scrollbar {
           display: none; /* Chrome, Safari, Opera */
-        }
-        .chat-slide-up {
-          animation: slideUp 0.3s ease-out;
-        }
-        .chat-slide-down {
-          animation: slideDown 0.25s ease-in;
         }
         @keyframes slideUp {
           from {
@@ -356,21 +364,36 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
             transform: translateY(20px);
           }
         }
+        @keyframes shake {
+          0%, 100% { transform: translate(0, 0); }
+          10% { transform: translate(-15px, 5px); }
+          20% { transform: translate(15px, -5px); }
+          30% { transform: translate(-15px, -5px); }
+          40% { transform: translate(15px, 5px); }
+          50% { transform: translate(-12px, 3px); }
+          60% { transform: translate(12px, -3px); }
+          70% { transform: translate(-8px, -2px); }
+          80% { transform: translate(8px, 2px); }
+          90% { transform: translate(-4px, 1px); }
+        }
+        .screen-shake {
+          animation: shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+        }
       `}</style>
 
       {/* Poke notification */}
       {showPoke && (
         <div 
-          className="fixed bottom-[520px] right-[420px] rounded-xl shadow-2xl px-6 py-4 z-50 border-2"
+          className="fixed top-24 right-8 rounded-xl shadow-2xl px-8 py-6 z-[9999] border-4 animate-bounce"
           style={{ 
             backgroundColor: 'var(--card-bg)', 
             color: 'var(--foreground)',
             borderColor: 'var(--primary)',
-            boxShadow: '0 0 0 4px rgba(59,130,246,0.25)'
+            boxShadow: '0 0 30px rgba(59,130,246,0.5), 0 0 0 8px rgba(59,130,246,0.25)'
           }}
         >
-          <div className="text-lg font-bold flex items-center gap-2">
-            <span role="img" aria-label="poke">👉</span>
+          <div className="text-2xl font-bold flex items-center gap-3">
+            <span role="img" aria-label="poke" className="text-4xl">👉</span>
             {pokeFrom} poked you!
           </div>
         </div>

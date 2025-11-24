@@ -10,6 +10,8 @@ interface RankingEntry {
   clerkId: string
   place: number
   points: number
+  username?: string
+  avatarKey?: string
 }
 
 export default function ChallengeResultsModal({ onWebSocketMessage }: ChallengeResultsModalProps) {
@@ -62,7 +64,7 @@ export default function ChallengeResultsModal({ onWebSocketMessage }: ChallengeR
                   </div>
                   <div>
                     <div className="font-semibold">
-                      {entry.clerkId}
+                      {entry.username || entry.clerkId}
                       {entry.clerkId === winnerId && ' 👑'}
                     </div>
                     <div className="text-sm opacity-80">
@@ -70,7 +72,7 @@ export default function ChallengeResultsModal({ onWebSocketMessage }: ChallengeR
                     </div>
                   </div>
                 </div>
-                <div className="text-xl font-bold">
+                <div className="text-xl font-bold" style={{ color: entry.clerkId === winnerId ? 'white' : 'var(--primary)' }}>
                   {entry.points >= 0 ? `+${entry.points}` : entry.points}
                 </div>
               </div>

@@ -64,6 +64,22 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
     onClose()
   }
 
+  const handleRandomSelect = () => {
+    if (players.length === 0) return
+    
+    // Filter out already owned players for random selection
+    const availablePlayers = players.filter(p => !ownedPlayerIds.includes(p.id))
+    
+    // If all players are owned, select from all players anyway
+    const playersToChooseFrom = availablePlayers.length > 0 ? availablePlayers : players
+    
+    // Select random player
+    const randomIndex = Math.floor(Math.random() * playersToChooseFrom.length)
+    const randomPlayer = playersToChooseFrom[randomIndex]
+    
+    handlePlayerSelect(randomPlayer.id)
+  }
+
   if (!isOpen) return null
 
   return (
@@ -93,7 +109,7 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
             </div>
 
             {/* Type Selector */}
-            <div className="flex gap-2 justify-center">
+            <div className="flex gap-2 justify-center items-center">
               <button
                 onClick={() => setSelectedType('FOOTBALLER')}
                 className={`px-6 py-3 rounded-lg text-base font-bold transition-all ${
@@ -113,6 +129,16 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
                 }`}
               >
                 🎵 Musicians
+              </button>
+              
+              {/* Random Icon Button */}
+              <button
+                onClick={handleRandomSelect}
+                disabled={loading || players.length === 0}
+                className="w-12 h-12 rounded-lg text-2xl transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center"
+                title={`Random ${selectedType === 'FOOTBALLER' ? 'Footballer' : 'Musician'}`}
+              >
+                🎲
               </button>
             </div>
           </div>

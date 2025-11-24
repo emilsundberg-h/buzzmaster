@@ -58,12 +58,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate points to award
-    const pointsToAward = isCorrect
-      ? points !== undefined
-        ? points
-        : answer.question.points
-      : 0;
+    // Calculate points to award based on scoring type
+    let pointsToAward = 0;
+    if (isCorrect) {
+      if (points !== undefined) {
+        // Use manually specified points
+        pointsToAward = points;
+      } else {
+        // Calculate based on scoring type
+        switch (answer.question.scoringType) {
+          case "DESCENDING":
+            // Count how many answered BEFORE this user (based on timestamp)
+            const answersBeforeThis = await db.answer.count({
+              where: {
+                questionId: answer.questionId,
+                competitionId: answer.competitionId,
+                answeredAt: {
+                  lt: answer.answeredAt, // Before this answer's timestamp
+                },
+              },
+            });
+            pointsToAward = Math.max(1, answer.question.points - answersBeforeThis);
+            console.log(`DESCENDING grade: Answer #${answersBeforeThis + 1}, awarding ${pointsToAward} points (max: ${answer.question.points})`);
+            break;
+          
+          case "FIRST_ONLY":
+            // Check if any other answer has been graded correct
+            const otherCorrectGraded = await db.answer.count({
+              where: {
+                questionId: answer.questionId,
+                competitionId: answer.competitionId,
+                id: { not: answer.id },
+                isCorrect: true,
+                reviewed: true,
+              },
+            });
+            pointsToAward = otherCorrectGraded === 0 ? answer.question.points : 0;
+            break;
+          
+          case "ALL_EQUAL":
+          default:
+            pointsToAward = answer.question.points;
+            break;
+        }
+      }
+    }
 
     // Update answer
     const updatedAnswer = await db.answer.update({

@@ -33,10 +33,12 @@ interface Question {
 interface QuestionManagerProps {
   competitionId: string
   refreshTrigger?: number
+  autoOpenQuestionId?: string | null
+  onAutoOpenHandled?: () => void
   onQuestionSent?: (question: Question) => void
 }
 
-export default function QuestionManager({ competitionId, refreshTrigger, onQuestionSent }: QuestionManagerProps) {
+export default function QuestionManager({ competitionId, refreshTrigger, autoOpenQuestionId, onAutoOpenHandled, onQuestionSent }: QuestionManagerProps) {
   const [questions, setQuestions] = useState<Question[]>([])
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -58,6 +60,10 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [sendTrophyId, setSendTrophyId] = useState<string | null>(null)
   const [showTrophyModal, setShowTrophyModal] = useState(false)
+  
+  // Accordion state
+  const [pendingOpen, setPendingOpen] = useState(false)
+  const [submittedOpen, setSubmittedOpen] = useState(false)
 
   useEffect(() => {
     fetchQuestions()
@@ -70,12 +76,34 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
     }
   }, [refreshTrigger])
 
+  // Auto-open question modal when someone answers
+  useEffect(() => {
+    if (autoOpenQuestionId && questions.length > 0) {
+      const question = questions.find(q => q.id === autoOpenQuestionId)
+      if (question) {
+        console.log('Auto-opening question modal for:', question.text)
+        setSelectedQuestion(question)
+        onAutoOpenHandled?.()
+      }
+    }
+  }, [autoOpenQuestionId, questions, onAutoOpenHandled])
+
   const fetchQuestions = async () => {
     try {
       const response = await fetch(`/api/questions/list?competitionId=${competitionId}`)
       if (response.ok) {
         const data = await response.json()
-        setQuestions(data.questions || [])
+        const newQuestions = data.questions || []
+        setQuestions(newQuestions)
+        
+        // If modal is open, update the selected question with fresh data
+        if (selectedQuestion) {
+          const updatedQuestion = newQuestions.find((q: Question) => q.id === selectedQuestion.id)
+          if (updatedQuestion) {
+            console.log('Updating selected question with fresh data. Answers:', updatedQuestion.answers?.length)
+            setSelectedQuestion(updatedQuestion)
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to fetch questions:', error)
@@ -538,12 +566,115 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
         )}
       </div>
 
-      {/* Questions List */}
+      {/* Questions List with Accordions */}
       <div className="space-y-3">
         {questions.length === 0 ? (
           <p className="text-center py-4 opacity-70">No questions created yet</p>
         ) : (
-          questions.map((question) => (
+          <>
+            {/* Pending Questions Accordion */}
+            <div 
+              className="rounded-lg overflow-hidden"
+              style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)' }}
+            >
+              <button
+                onClick={() => setPendingOpen(!pendingOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-md font-semibold">Pending Questions</span>
+                  <span 
+                    className="px-2 py-1 rounded-full text-xs font-bold bg-gray-500 text-white"
+                  >
+                    {questions.filter(q => q.status === 'DRAFT').length}
+                  </span>
+                </div>
+                <span className="text-2xl">{pendingOpen ? '⌄' : '›'}</span>
+              </button>
+              
+              {pendingOpen && (
+                <div className="px-4 pb-4 space-y-3">
+                  {questions.filter(q => q.status === 'DRAFT').length === 0 ? (
+                    <p className="text-sm opacity-70 text-center py-4">No pending questions</p>
+                  ) : (
+                    questions.filter(q => q.status === 'DRAFT').map((question) => (
+                      <div key={question.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="px-2 py-1 rounded text-xs font-semibold bg-gray-200 text-gray-700">
+                                Draft
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {question.type === 'FREETEXT' ? 'Free Text' : 'Multiple Choice'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {question.points} points
+                              </span>
+                            </div>
+                            <p className="font-medium">{question.text}</p>
+                            {question.type === 'MULTIPLE_CHOICE' && question.options && (
+                              <div className="mt-2 text-sm text-gray-600">
+                                <div className="font-medium">Options:</div>
+                                <ul className="list-disc list-inside">
+                                  {question.options.map((opt, idx) => (
+                                    <li key={idx} className={opt === question.correctAnswer ? 'text-green-600 font-semibold' : ''}>
+                                      {opt} {opt === question.correctAnswer && '✓'}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => handleSendQuestion(question.id, sendTrophyId)}
+                              disabled={loading}
+                              className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300"
+                            >
+                              Send {sendTrophyId ? '🏆' : ''}
+                            </button>
+                            {question.trophyId && (
+                              <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                                🏆 Trophy
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Submitted Questions Accordion */}
+            <div 
+              className="rounded-lg overflow-hidden"
+              style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)' }}
+            >
+              <button
+                onClick={() => setSubmittedOpen(!submittedOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-md font-semibold">Submitted Questions</span>
+                  <span 
+                    className="px-2 py-1 rounded-full text-xs font-bold bg-gray-500 text-white"
+                  >
+                    {questions.filter(q => q.status === 'ACTIVE' || q.status === 'COMPLETED').length}
+                  </span>
+                </div>
+                <span className="text-2xl">{submittedOpen ? '⌄' : '›'}</span>
+              </button>
+              
+              {submittedOpen && (
+                <div className="px-4 pb-4 space-y-3">
+                  {questions.filter(q => q.status === 'ACTIVE' || q.status === 'COMPLETED').length === 0 ? (
+                    <p className="text-sm opacity-70 text-center py-4">No submitted questions</p>
+                  ) : (
+                    questions.filter(q => q.status === 'ACTIVE' || q.status === 'COMPLETED').map((question) => (
             <div key={question.id} className="border rounded-lg p-4">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
@@ -627,26 +758,34 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                 </div>
               </div>
             </div>
-          ))
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
       {/* Answer Review Modal */}
       {selectedQuestion && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+          <div 
+            className="rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+            style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
+          >
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-xl font-bold">{selectedQuestion.text}</h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm opacity-70 mt-1">
                     {selectedQuestion.type === 'FREETEXT' ? 'Free Text' : 'Multiple Choice'} • 
                     Correct answer: <span className="font-semibold">{selectedQuestion.correctAnswer}</span>
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedQuestion(null)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  className="text-2xl opacity-70 hover:opacity-100"
                 >
                   ×
                 </button>
@@ -663,7 +802,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                     return (
                       <div 
                         key={answer.id} 
-                        className={`border-2 rounded-lg p-3 ${isFirst ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}
+                        className={`border-2 rounded-lg p-3 ${isFirst ? 'border-yellow-400' : 'border-gray-200'}`}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex items-start gap-3 flex-1">
@@ -675,11 +814,15 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                             </div>
                             
                             {/* Avatar */}
-                            <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                            <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
                               <img
-                                src={getAvatarPath(answer.avatarKey)}
+                                src={getAvatarPath(answer.avatarKey || '01')}
                                 alt={answer.username}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  console.error('Failed to load avatar:', answer.avatarKey, 'for user:', answer.username)
+                                  e.currentTarget.src = getAvatarPath('01')
+                                }}
                               />
                             </div>
                             
@@ -692,23 +835,25 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                                     🥇 FIRST TO ANSWER
                                   </span>
                                 )}
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs opacity-60">
                                   {answerTime}
                                 </span>
                               </div>
-                              <p className="mt-1 text-gray-800">{answer.text}</p>
+                              <p className="mt-1 font-medium">{answer.text}</p>
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex flex-col items-end gap-2">
                             {answer.reviewed ? (
-                              <div>
+                              <>
                                 <span className={`px-2 py-1 rounded text-xs font-semibold ${
                                   answer.isCorrect ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700'
                                 }`}>
                                   {answer.isCorrect ? 'Correct' : 'Wrong'}
                                 </span>
-                                <p className="text-sm mt-1">{answer.points} points</p>
-                              </div>
+                                <p className="text-lg font-bold" style={{ color: 'var(--primary)' }}>
+                                  {answer.points} points
+                                </p>
+                              </>
                             ) : (
                               <div className="flex gap-2">
                                 <button
@@ -733,7 +878,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                     );
                   })
                 ) : (
-                  <p className="text-gray-500 text-center py-4">No answers yet</p>
+                  <p className="opacity-70 text-center py-4">No answers yet</p>
                 )}
               </div>
             </div>

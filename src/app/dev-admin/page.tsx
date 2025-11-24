@@ -14,7 +14,6 @@ import QuestionManager from '@/components/QuestionManager'
 import CategoryGameManager from '@/components/CategoryGameManager'
 import ThemeSelector from '@/components/ThemeSelector'
 import ChatMessenger from '@/components/ChatMessenger'
-import TrophyModal from '@/components/TrophyModal'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme, Theme } from '@/contexts/ThemeContext'
 
@@ -108,6 +107,7 @@ export default function DevAdminPage() {
   const [savedTimerEnabled, setSavedTimerEnabled] = useState(false)
   const [savedTimerDuration, setSavedTimerDuration] = useState(10)
   const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0)
+  const [autoOpenQuestionId, setAutoOpenQuestionId] = useState<string | null>(null)
   const [showUsers, setShowUsers] = useState(true)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [pendingDeleteUserId, setPendingDeleteUserId] = useState<string | null>(null)
@@ -119,13 +119,10 @@ export default function DevAdminPage() {
   const [arkSpeed, setArkSpeed] = useState(200)
   const [arkPaddle, setArkPaddle] = useState(72)
   const [arkChillMode, setArkChillMode] = useState(false)
+  const [arkDifficulty, setArkDifficulty] = useState<'medium' | 'hard' | 'extreme'>('medium')
   // Simon Game config
   const [simonOpen, setSimonOpen] = useState(false)
   const [simonChillMode, setSimonChillMode] = useState(false)
-  
-  // Give Player/Artist state
-  const [selectedUserId, setSelectedUserId] = useState<string>('')
-  const [isTrophyGiveModalOpen, setIsTrophyGiveModalOpen] = useState(false)
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -317,9 +314,13 @@ export default function DevAdminPage() {
                   }
                   break
                 case 'question:answered':
-                  console.log('WebSocket: Question answered event received')
+                  console.log('WebSocket: Question answered event received', actualMessage.data)
                   // Trigger refresh of questions to show new answers
                   setQuestionRefreshTrigger(prev => prev + 1)
+                  // Auto-open the question modal
+                  if (actualMessage.data?.questionId) {
+                    setAutoOpenQuestionId(actualMessage.data.questionId)
+                  }
                   break
                 default:
                   console.log('WebSocket: Unknown wrapped message type:', actualMessage.type)
@@ -435,9 +436,13 @@ export default function DevAdminPage() {
                   fetchRooms()
                   break
                 case 'question:answered':
-                  console.log('WebSocket: Question answered event received (direct)')
+                  console.log('WebSocket: Question answered event received (direct)', lastMessage.data)
                   // Trigger refresh of questions to show new answers
                   setQuestionRefreshTrigger(prev => prev + 1)
+                  // Auto-open the question modal
+                  if (lastMessage.data?.questionId) {
+                    setAutoOpenQuestionId(lastMessage.data.questionId)
+                  }
                   break
                 case 'festival-poster:toggled':
                   console.log('WebSocket: Festival poster toggled event received (direct)', lastMessage.data?.enabled)
@@ -828,39 +833,6 @@ export default function DevAdminPage() {
     }
   }
 
-  // Give player/artist to user (called from TrophyModal)
-  const handleGivePlayerSelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
-    if (!selectedUserId) {
-      alert('Please select a user first')
-      return
-    }
-
-    try {
-      const response = await fetch('/api/players/give', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: selectedUserId, 
-          playerId: playerId 
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        alert(data.error || 'Failed to give player')
-        return
-      }
-
-      alert(data.message || `${playerType === 'FOOTBALLER' ? 'Footballer' : 'Artist'} given successfully!`)
-      setSelectedUserId('')
-      setIsTrophyGiveModalOpen(false)
-    } catch (error) {
-      console.error('Give player failed:', error)
-      alert('Failed to give player')
-    }
-  }
-
   const handleKickUser = async (userId: string, roomId: string) => {
     try {
       const response = await fetch('/api/rooms/kick', {
@@ -1164,6 +1136,8 @@ export default function DevAdminPage() {
             <QuestionManager 
               competitionId={currentCompetitionId}
               refreshTrigger={questionRefreshTrigger}
+              autoOpenQuestionId={autoOpenQuestionId}
+              onAutoOpenHandled={() => setAutoOpenQuestionId(null)}
               onQuestionSent={(question) => {
                 console.log('Question sent to users')
                 // Auto-evaluate multiple choice questions after 30 seconds
@@ -1188,52 +1162,6 @@ export default function DevAdminPage() {
                   }, 30000) // 30 seconds
                 }
               }}
-            />
-          </div>
-        )}
-
-        {/* Give Player/Artist to Winner */}
-        {currentRoom && (
-          <div className="p-6 rounded-lg shadow mb-8" style={{ backgroundColor: 'var(--card-bg)' }}>
-            <h2 className="text-xl font-bold mb-4">🎁 Give Player/Artist to Winner</h2>
-            
-            <div className="space-y-4">
-              {/* User selection */}
-              <div>
-                <label className="block font-medium mb-2">Select User (Winner)</label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full p-2 border rounded bg-white text-black"
-                >
-                  <option value="">-- Select User --</option>
-                  {currentRoom.memberships.map((m) => (
-                    <option key={m.user.id} value={m.user.clerkId}>
-                      {m.user.username} (Score: {m.user.score})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Choose Player/Artist button */}
-              <button
-                onClick={() => setIsTrophyGiveModalOpen(true)}
-                disabled={!selectedUserId}
-                className="w-full px-6 py-3 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: selectedUserId ? 'var(--primary)' : 'var(--muted)',
-                  color: 'white'
-                }}
-              >
-                🏆 Choose Player/Artist to Give
-              </button>
-            </div>
-
-            {/* Trophy Modal */}
-            <TrophyModal
-              isOpen={isTrophyGiveModalOpen}
-              onClose={() => setIsTrophyGiveModalOpen(false)}
-              onSelect={handleGivePlayerSelect}
             />
           </div>
         )}
@@ -1278,7 +1206,20 @@ export default function DevAdminPage() {
                   <span className="text-sm font-medium">Chill Mode (game ends only when all players are eliminated)</span>
                 </label>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                <div>
+                  <label className="block text-xs opacity-70 mb-1">Difficulty</label>
+                  <select 
+                    value={arkDifficulty} 
+                    onChange={e => setArkDifficulty(e.target.value as 'medium' | 'hard' | 'extreme')} 
+                    className="w-full px-2 py-1 border rounded" 
+                    style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                  >
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                    <option value="extreme">Extreme</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs opacity-70 mb-1">Seed</label>
                   <input type="number" value={arkSeed} onChange={e => setArkSeed(parseInt(e.target.value||'0'))} className="w-full px-2 py-1 border rounded" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
@@ -1379,7 +1320,7 @@ export default function DevAdminPage() {
             await fetch('/api/challenges/start', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ roomId: currentRoom.id, roundId: currentRound.id, config: { seed: arkSeed, rows: arkRows, cols: arkCols, ballSpeed: arkSpeed, paddleWidth: arkPaddle, chillMode: arkChillMode } })
+              body: JSON.stringify({ roomId: currentRoom.id, roundId: currentRound.id, config: { seed: arkSeed, rows: arkRows, cols: arkCols, ballSpeed: arkSpeed, paddleWidth: arkPaddle, chillMode: arkChillMode, difficulty: arkDifficulty } })
             })
           }}
         />

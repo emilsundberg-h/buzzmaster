@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
               return {
                 ...answer,
                 username: user?.username || "Unknown",
-                avatarKey: user?.avatarKey || "avatar-1",
+                avatarKey: user?.avatarKey || "01",
                 answeredAt: answer.answeredAt, // Include timestamp for display
               };
             })

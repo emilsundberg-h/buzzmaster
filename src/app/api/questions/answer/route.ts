@@ -110,16 +110,19 @@ export async function POST(request: NextRequest) {
             break;
 
           case "DESCENDING":
-            // Points decrease based on how many have already answered correctly
-            const correctAnswerCount = await db.answer.count({
+            // Points decrease based on how many have already answered
+            // For FREETEXT, count all answers since they're not auto-graded
+            // For MULTIPLE_CHOICE, count only correct answers
+            const answerCount = await db.answer.count({
               where: {
                 questionId,
                 competitionId,
-                isCorrect: true,
+                ...(question.type === "MULTIPLE_CHOICE" ? { isCorrect: true } : {}),
               },
             });
             // Give points based on position (1st gets most, 2nd gets less, etc.)
-            pointsToAward = Math.max(1, question.points - correctAnswerCount);
+            pointsToAward = Math.max(1, question.points - answerCount);
+            console.log(`DESCENDING: Answer #${answerCount + 1}, awarding ${pointsToAward} points (max: ${question.points})`)
             break;
 
           case "ALL_EQUAL":
