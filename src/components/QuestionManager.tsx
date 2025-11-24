@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Trophy } from 'lucide-react'
-import TrophyPicker from './TrophyPicker'
+import TrophyModal from './TrophyModal'
 import { getAvatarPath } from '@/lib/avatar-helpers'
 
 interface Question {
@@ -57,6 +57,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
   // Selected question for viewing answers
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [sendTrophyId, setSendTrophyId] = useState<string | null>(null)
+  const [showTrophyModal, setShowTrophyModal] = useState(false)
 
   useEffect(() => {
     fetchQuestions()
@@ -116,23 +117,23 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
 
   const handleCreateQuestion = async () => {
     if (!questionText) {
-      alert('Fråga måste fyllas i')
+      alert('Question text is required')
       return
     }
 
     if (questionType === 'FREETEXT' && !correctAnswer) {
-      alert('Rätt svar måste fyllas i för frisvar')
+      alert('Correct answer is required for free text questions')
       return
     }
 
     if (questionType === 'MULTIPLE_CHOICE') {
       const filledOptions = options.filter(opt => opt.trim() !== '')
       if (filledOptions.length < 2) {
-        alert('Minst två alternativ måste fyllas i')
+        alert('At least two options must be filled in')
         return
       }
       if (!correctAnswerLetter) {
-        alert('Rätt svar måste väljas')
+        alert('Correct answer must be selected')
         return
       }
     }
@@ -202,11 +203,11 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
         fetchQuestions()
       } else {
         const error = await response.json()
-        alert(error.error || 'Kunde inte skapa fråga')
+        alert(error.error || 'Failed to create question')
       }
     } catch (error) {
       console.error('Create question failed:', error)
-      alert('Kunde inte skapa fråga')
+      alert('Failed to create question')
     } finally {
       setLoading(false)
     }
@@ -238,11 +239,11 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
         setSendTrophyId(null) // Reset trophy selection
       } else {
         const error = await response.json()
-        alert(error.error || 'Kunde inte skicka fråga')
+        alert(error.error || 'Failed to send question')
       }
     } catch (error) {
       console.error('Send question failed:', error)
-      alert('Kunde inte skicka fråga')
+      alert('Failed to send question')
     } finally {
       setLoading(false)
     }
@@ -259,14 +260,14 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
 
       if (response.ok) {
         fetchQuestions()
-        alert('Frågan har rättats!')
+        alert('Question has been graded!')
       } else {
         const error = await response.json()
-        alert(error.error || 'Kunde inte rätta fråga')
+        alert(error.error || 'Failed to grade question')
       }
     } catch (error) {
       console.error('Evaluate question failed:', error)
-      alert('Kunde inte rätta fråga')
+      alert('Failed to grade question')
     } finally {
       setLoading(false)
     }
@@ -305,11 +306,11 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
         fetchQuestions()
       } else {
         const error = await response.json()
-        alert(error.error || 'Kunde inte rätta svar')
+        alert(error.error || 'Failed to grade answer')
       }
     } catch (error) {
       console.error('Grade answer failed:', error)
-      alert('Kunde inte rätta svar')
+      alert('Failed to grade answer')
     } finally {
       setLoading(false)
     }
@@ -318,48 +319,48 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
   return (
     <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Frågehantering</h2>
+        <h2 className="text-xl font-bold">Question Management</h2>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
-          {showCreateForm ? 'Stäng' : 'Skapa ny fråga'}
+          {showCreateForm ? 'Close' : 'Create New Question'}
         </button>
       </div>
 
       {/* Create Question Form */}
       {showCreateForm && (
         <div className="mb-6 p-4 border-2 rounded-lg border-gray-400 dark:border-gray-600" style={{ backgroundColor: 'var(--input-bg)' }}>
-          <h3 className="text-lg font-semibold mb-3">Skapa ny fråga</h3>
+          <h3 className="text-lg font-semibold mb-3">Create New Question</h3>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Frågetext</label>
+              <label className="block text-sm font-medium mb-1">Question Text</label>
               <textarea
                 value={questionText}
                 onChange={(e) => setQuestionText(e.target.value)}
                 className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
                 style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                 rows={3}
-                placeholder="Skriv din fråga här..."
+                placeholder="Write your question here..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Frågetyp</label>
+              <label className="block text-sm font-medium mb-1">Question Type</label>
               <select
                 value={questionType}
                 onChange={(e) => setQuestionType(e.target.value as 'FREETEXT' | 'MULTIPLE_CHOICE')}
                 className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
                 style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
               >
-                <option value="FREETEXT">Frisvar</option>
-                <option value="MULTIPLE_CHOICE">Flervalsfråga</option>
+                <option value="FREETEXT">Free Text</option>
+                <option value="MULTIPLE_CHOICE">Multiple Choice</option>
               </select>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium mb-1">Bild (valfritt)</label>
+              <label className="block text-sm font-medium mb-1">Image (optional)</label>
               
               <div className="flex gap-2">
                 <input
@@ -368,12 +369,12 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                   onChange={(e) => setImageUrl(e.target.value)}
                   className="flex-1 px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
                   style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
-                  placeholder="Eller ange en bild-URL..."
+                  placeholder="Or enter an image URL..."
                 />
               </div>
               
               <div>
-                <label className="block text-xs opacity-70 mb-1">Eller ladda upp en bild:</label>
+                <label className="block text-xs opacity-70 mb-1">Or upload an image:</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -397,13 +398,13 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
             {questionType === 'MULTIPLE_CHOICE' && (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="block text-sm font-medium">Alternativ</label>
+                  <label className="block text-sm font-medium">Options</label>
                   <button
                     type="button"
                     onClick={addOption}
                     className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
                   >
-                    + Lägg till alternativ
+                    + Add Option
                   </button>
                 </div>
                 
@@ -416,7 +417,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                       onChange={(e) => updateOption(index, e.target.value)}
                       className="flex-1 px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
                       style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
-                      placeholder={`Alternativ ${getLetterForIndex(index)}`}
+                      placeholder={`Option ${getLetterForIndex(index)}`}
                     />
                     {options.length > 2 && (
                       <button
@@ -424,14 +425,14 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                         onClick={() => removeOption(index)}
                         className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
                       >
-                        Ta bort
+                        Remove
                       </button>
                     )}
                   </div>
                 ))}
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Rätt svar</label>
+                  <label className="block text-sm font-medium mb-1">Correct Answer</label>
                   <select
                     value={correctAnswerLetter}
                     onChange={(e) => setCorrectAnswerLetter(e.target.value)}
@@ -440,7 +441,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                   >
                     {options.map((_, index) => (
                       <option key={index} value={getLetterForIndex(index)}>
-                        {getLetterForIndex(index).toUpperCase()} - {options[index] || '(tomt)'}
+                        {getLetterForIndex(index).toUpperCase()} - {options[index] || '(empty)'}
                       </option>
                     ))}
                   </select>
@@ -450,21 +451,21 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
 
             {questionType === 'FREETEXT' && (
               <div>
-                <label className="block text-sm font-medium mb-1">Rätt svar</label>
+                <label className="block text-sm font-medium mb-1">Correct Answer</label>
                 <input
                   type="text"
                   value={correctAnswer}
                   onChange={(e) => setCorrectAnswer(e.target.value)}
                   className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
                   style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
-                  placeholder="Rätt svar"
+                  placeholder="Correct answer"
                 />
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Poäng</label>
+                <label className="block text-sm font-medium mb-1">Points</label>
                 <input
                   type="number"
                   value={points}
@@ -476,26 +477,26 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Poängsystem</label>
+                <label className="block text-sm font-medium mb-1">Scoring System</label>
                 <select
                   value={scoringType}
                   onChange={(e) => setScoringType(e.target.value as any)}
                   className="w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring focus:ring-blue-500/30 border-gray-400 dark:border-gray-600"
                   style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}
                 >
-                  <option value="ALL_EQUAL">Alla rätt får lika</option>
-                  <option value="FIRST_ONLY">Bara första</option>
-                  <option value="DESCENDING">Fallande poäng</option>
+                  <option value="ALL_EQUAL">All Correct Get Equal</option>
+                  <option value="FIRST_ONLY">First Only</option>
+                  <option value="DESCENDING">Descending Points</option>
                 </select>
               </div>
             </div>
 
             <div className="text-sm p-3 rounded" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}>
-              <strong>Poängsystem:</strong>
+              <strong>Scoring System:</strong>
               <ul className="list-disc list-inside mt-1">
-                <li><strong>Alla rätt får lika:</strong> Alla som svarar rätt får samma poäng</li>
-                <li><strong>Bara första:</strong> Endast den som svarar rätt först får poäng</li>
-                <li><strong>Fallande poäng:</strong> Första får mest, sista får minst (t.ex. 5, 4, 3, 2, 1)</li>
+                <li><strong>All Correct Get Equal:</strong> Everyone who answers correctly gets the same points</li>
+                <li><strong>First Only:</strong> Only the first correct answer gets points</li>
+                <li><strong>Descending Points:</strong> First gets most, last gets least (e.g. 5, 4, 3, 2, 1)</li>
               </ul>
             </div>
 
@@ -504,25 +505,43 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
               disabled={loading}
               className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
             >
-              {loading ? 'Skapar...' : 'Spara fråga'}
+              {loading ? 'Creating...' : 'Save Question'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Trophy Picker for Sending Questions */}
+      {/* Trophy Selection Button */}
       <div className="mb-4 p-4 border rounded-lg" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)' }}>
-        <TrophyPicker
-          selectedTrophyId={sendTrophyId}
-          onSelect={setSendTrophyId}
-          label="Välj trofé att skicka med nästa fråga (valfritt)"
-        />
+        <div className="flex items-center justify-between">
+          <div>
+            <label className="block text-sm font-medium mb-1">Trophy for next question (optional)</label>
+            <p className="text-xs opacity-70">Click to select a trophy to send with the next question</p>
+          </div>
+          <button
+            onClick={() => setShowTrophyModal(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold"
+          >
+            {sendTrophyId ? '🏆 Change Trophy' : '🏆 Select Trophy'}
+          </button>
+        </div>
+        {sendTrophyId && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-sm font-medium">Trophy selected</span>
+            <button
+              onClick={() => setSendTrophyId(null)}
+              className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              Clear
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Questions List */}
       <div className="space-y-3">
         {questions.length === 0 ? (
-          <p className="text-center py-4 opacity-70">Inga frågor skapade än</p>
+          <p className="text-center py-4 opacity-70">No questions created yet</p>
         ) : (
           questions.map((question) => (
             <div key={question.id} className="border rounded-lg p-4">
@@ -534,19 +553,19 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                       question.status === 'ACTIVE' ? 'bg-green-200 text-green-700' :
                       'bg-blue-200 text-blue-700'
                     }`}>
-                      {question.status === 'DRAFT' ? 'Utkast' : question.status === 'ACTIVE' ? 'Aktiv' : 'Avslutad'}
+                      {question.status === 'DRAFT' ? 'Draft' : question.status === 'ACTIVE' ? 'Active' : 'Completed'}
                     </span>
                     <span className="text-xs text-gray-500">
-                      {question.type === 'FREETEXT' ? 'Frisvar' : 'Flerval'}
+                      {question.type === 'FREETEXT' ? 'Free Text' : 'Multiple Choice'}
                     </span>
                     <span className="text-xs text-gray-500">
-                      {question.points} poäng
+                      {question.points} points
                     </span>
                   </div>
                   <p className="font-medium">{question.text}</p>
                   {question.type === 'MULTIPLE_CHOICE' && question.options && (
                     <div className="mt-2 text-sm text-gray-600">
-                      <div className="font-medium">Alternativ:</div>
+                      <div className="font-medium">Options:</div>
                       <ul className="list-disc list-inside">
                         {question.options.map((opt, idx) => (
                           <li key={idx} className={opt === question.correctAnswer ? 'text-green-600 font-semibold' : ''}>
@@ -566,14 +585,14 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                         disabled={loading}
                         className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300"
                       >
-                        Skicka {sendTrophyId ? '🏆' : ''}
+                        Send {sendTrophyId ? '🏆' : ''}
                       </button>
                     </>
                   )}
                   
                   {question.trophyId && (
                     <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
-                      🏆 Trofé
+                      🏆 Trophy
                     </span>
                   )}
                   
@@ -583,7 +602,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                         onClick={() => setSelectedQuestion(question)}
                         className="px-3 py-1 bg-purple-500 text-white text-sm rounded hover:bg-purple-600"
                       >
-                        Visa svar ({question.answers?.length || 0})
+                        View Answers ({question.answers?.length || 0})
                       </button>
                       {question.type === 'MULTIPLE_CHOICE' && (
                         <button
@@ -591,7 +610,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                           disabled={loading}
                           className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:bg-gray-300"
                         >
-                          Rätta automatiskt
+                          Grade Automatically
                         </button>
                       )}
                     </>
@@ -602,7 +621,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                       onClick={() => setSelectedQuestion(question)}
                       className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600"
                     >
-                      Visa resultat
+                      View Results
                     </button>
                   )}
                 </div>
@@ -621,8 +640,8 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                 <div>
                   <h3 className="text-xl font-bold">{selectedQuestion.text}</h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    {selectedQuestion.type === 'FREETEXT' ? 'Frisvar' : 'Flerval'} • 
-                    Rätt svar: <span className="font-semibold">{selectedQuestion.correctAnswer}</span>
+                    {selectedQuestion.type === 'FREETEXT' ? 'Free Text' : 'Multiple Choice'} • 
+                    Correct answer: <span className="font-semibold">{selectedQuestion.correctAnswer}</span>
                   </p>
                 </div>
                 <button
@@ -670,7 +689,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                                 <p className="font-bold">{answer.username}</p>
                                 {isFirst && (
                                   <span className="px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-semibold rounded">
-                                    🥇 FÖRST ATT SVARA
+                                    🥇 FIRST TO ANSWER
                                   </span>
                                 )}
                                 <span className="text-xs text-gray-500">
@@ -686,9 +705,9 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                                 <span className={`px-2 py-1 rounded text-xs font-semibold ${
                                   answer.isCorrect ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700'
                                 }`}>
-                                  {answer.isCorrect ? 'Rätt' : 'Fel'}
+                                  {answer.isCorrect ? 'Correct' : 'Wrong'}
                                 </span>
-                                <p className="text-sm mt-1">{answer.points} poäng</p>
+                                <p className="text-sm mt-1">{answer.points} points</p>
                               </div>
                             ) : (
                               <div className="flex gap-2">
@@ -697,14 +716,14 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                                   disabled={loading}
                                   className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:bg-gray-300"
                                 >
-                                  ✓ Rätt
+                                  ✓ Correct
                                 </button>
                                 <button
                                   onClick={() => handleGradeAnswer(answer.id, false)}
                                   disabled={loading}
                                   className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:bg-gray-300"
                                 >
-                                  ✗ Fel
+                                  ✗ Wrong
                                 </button>
                               </div>
                             )}
@@ -714,13 +733,25 @@ export default function QuestionManager({ competitionId, refreshTrigger, onQuest
                     );
                   })
                 ) : (
-                  <p className="text-gray-500 text-center py-4">Inga svar än</p>
+                  <p className="text-gray-500 text-center py-4">No answers yet</p>
                 )}
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Trophy Modal */}
+      <TrophyModal
+        isOpen={showTrophyModal}
+        onClose={() => setShowTrophyModal(false)}
+        onSelect={(playerId, playerType) => {
+          // Create a player trophy ID in the format expected by the backend
+          const trophyId = `player_${playerId}`
+          setSendTrophyId(trophyId)
+          setShowTrophyModal(false)
+        }}
+      />
     </div>
   )
 }

@@ -51,6 +51,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine if trophy is a player trophy
+    const isPlayerTrophy = trophyId?.startsWith('player_');
+    const actualTrophyId = isPlayerTrophy ? null : trophyId;
+    const playerTrophyId = isPlayerTrophy ? trophyId : null;
+
     // Create or update QuestionUsage
     const usage = await db.questionUsage.upsert({
       where: {
@@ -64,12 +69,14 @@ export async function POST(request: NextRequest) {
         competitionId,
         status: "ACTIVE",
         sentAt: new Date(),
-        trophyId: trophyId || null,
+        trophyId: actualTrophyId,
+        playerTrophyId: playerTrophyId,
       },
       update: {
         status: "ACTIVE",
         sentAt: new Date(),
-        trophyId: trophyId || null,
+        trophyId: actualTrophyId,
+        playerTrophyId: playerTrophyId,
       },
       include: {
         trophy: true,
@@ -81,6 +88,27 @@ export async function POST(request: NextRequest) {
       ...question,
       options: question.options ? JSON.parse(question.options) : null,
     };
+
+    // Build trophy object for broadcast
+    let trophyData = null;
+    if (usage.trophy) {
+      // Traditional trophy
+      trophyData = usage.trophy;
+    } else if (playerTrophyId) {
+      // Player trophy - fetch player info
+      const playerId = playerTrophyId.replace('player_', '');
+      const player = await db.player.findUnique({
+        where: { id: playerId }
+      });
+      if (player) {
+        trophyData = {
+          id: playerTrophyId,
+          name: player.name,
+          imageKey: player.imageKey,
+          description: `${player.type === 'FOOTBALLER' ? '⚽ Footballer' : '🎵 Artist'} - ${player.position}`,
+        };
+      }
+    }
 
     // Broadcast question to all users in the room via WebSocket
     if (competition.room) {
@@ -97,7 +125,7 @@ export async function POST(request: NextRequest) {
             scoringType: questionData.scoringType,
           },
           competitionId,
-          trophy: usage.trophy, // Include trophy info if exists
+          trophy: trophyData, // Include trophy info if exists
         },
       });
     }

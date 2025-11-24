@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { broadcast } from "@/lib/websocket";
 
@@ -20,7 +19,6 @@ function generateRoomCode(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    // In dev mode, skip admin check
     const body = await request.json();
     const { name } = createRoomSchema.parse(body);
 
@@ -56,37 +54,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ room });
   } catch (error) {
     console.error("Room creation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET() {
-  try {
-    // Simplified query to avoid complex includes
-    const rooms = await db.room.findMany({
-      include: {
-        memberships: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                avatarKey: true,
-                score: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json({ rooms });
-  } catch (error) {
-    console.error("Rooms fetch error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

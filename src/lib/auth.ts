@@ -38,14 +38,39 @@ export async function requireAdmin() {
   const { userId, sessionClaims } = await auth();
 
   if (!userId) {
+    console.log('🔐 requireAdmin check: No userId');
     throw new Error("Unauthorized");
   }
 
-  const email = sessionClaims?.email as string;
-  if (!isAdmin(email)) {
+  // Try to get email from sessionClaims first
+  let email = sessionClaims?.email as string | undefined;
+
+  // If not in sessionClaims, fetch from Clerk API
+  if (!email) {
+    console.log('🔐 Email not in sessionClaims, fetching from Clerk API...');
+    try {
+      const { clerkClient } = await import('@clerk/nextjs/server');
+      const client = await clerkClient();
+      const user = await client.users.getUser(userId);
+      email = user.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress;
+      console.log('🔐 Fetched email from Clerk:', email);
+    } catch (error) {
+      console.error('🔐 Failed to fetch user from Clerk:', error);
+    }
+  }
+
+  console.log('🔐 requireAdmin check:', { 
+    userId, 
+    email,
+    allowlist: process.env.ADMIN_EMAIL_ALLOWLIST 
+  });
+
+  if (!email || !isAdmin(email)) {
+    console.log('🔐 Admin check failed - email not in allowlist:', email);
     throw new Error("Forbidden");
   }
 
+  console.log('🔐 Admin check passed!');
   return { userId, email };
 }
 

@@ -95,7 +95,8 @@ export async function POST(request: NextRequest) {
 
         // Award trophy if this question has one
         // Check if this is the first correct answer for THIS USAGE of the question
-        if (usage && usage.trophyId) {
+        const actualTrophyId = usage?.trophyId || usage?.playerTrophyId;
+        if (usage && actualTrophyId) {
           // Check if anyone else has already been graded correct for this specific usage
           const otherCorrectAnswer = await db.answer.findFirst({
             where: {
@@ -109,28 +110,16 @@ export async function POST(request: NextRequest) {
 
           if (!otherCorrectAnswer) {
             console.log(
-              `Awarding trophy ${usage.trophyId} to user ${user.username} - first correct answer for this usage`
+              `Awarding trophy ${actualTrophyId} to user ${user.username} - first correct answer for this usage`
             );
 
-            const trophyWin = await db.trophyWin.create({
-              data: {
-                userId: user.id,
-                trophyId: usage.trophyId,
-                source: "question",
-                sourceId: usage.id,
-              },
-              include: {
-                trophy: true,
-              },
-            });
-
             // Check if this is a player trophy (format: player_<playerId>)
-            if (usage.trophyId.startsWith('player_')) {
+            if (actualTrophyId.startsWith('player_')) {
               // Handle player trophy - add directly to user's collection
-              await addTrophyPlayerToDreamEleven(user.id, usage.trophyId);
+              await addTrophyPlayerToDreamEleven(user.id, actualTrophyId);
               
               // Get player info for broadcast
-              const playerId = usage.trophyId.replace('player_', '');
+              const playerId = actualTrophyId.replace('player_', '');
               const player = await db.player.findUnique({
                 where: { id: playerId }
               });
@@ -143,7 +132,7 @@ export async function POST(request: NextRequest) {
                     userId: user.id,
                     username: user.username,
                     trophy: {
-                      id: usage.trophyId,
+                      id: actualTrophyId,
                       name: player.name,
                       imageKey: player.imageKey,
                     },
@@ -152,24 +141,37 @@ export async function POST(request: NextRequest) {
                 });
               }
             } else {
-              // Handle traditional trophy - check if it's also a player (legacy support)
-              await addTrophyPlayerToDreamEleven(user.id, usage.trophyId);
-            }
-
-            // Broadcast trophy win
-            if (usage.competition.room) {
-              console.log(
-                `Broadcasting trophy:won to room ${usage.competition.room.id}`
-              );
-              broadcastToRoom(usage.competition.room.id, {
-                type: "trophy:won",
+              // Handle traditional trophy - create TrophyWin record
+              const trophyWin = await db.trophyWin.create({
                 data: {
                   userId: user.id,
-                  username: user.username,
-                  trophy: trophyWin.trophy,
-                  roomId: usage.competition.room.id,
+                  trophyId: actualTrophyId,
+                  source: "question",
+                  sourceId: usage.id,
+                },
+                include: {
+                  trophy: true,
                 },
               });
+
+              // Check if it's also a player (legacy support)
+              await addTrophyPlayerToDreamEleven(user.id, actualTrophyId);
+
+              // Broadcast trophy win
+              if (usage.competition.room) {
+                console.log(
+                  `Broadcasting trophy:won to room ${usage.competition.room.id}`
+                );
+                broadcastToRoom(usage.competition.room.id, {
+                  type: "trophy:won",
+                  data: {
+                    userId: user.id,
+                    username: user.username,
+                    trophy: trophyWin.trophy,
+                    roomId: usage.competition.room.id,
+                  },
+                });
+              }
             }
           } else {
             console.log(

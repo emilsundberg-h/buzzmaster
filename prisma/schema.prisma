@@ -152,6 +152,7 @@ model QuestionUsage {
   completedAt    DateTime?      // When the question was completed/graded
   createdAt      DateTime       @default(now())
   trophyId       String?        // Trophy for this question
+  playerTrophyId String?        // Player/Artist trophy ID (format: player_<playerId>)
   
   question       Question       @relation(fields: [questionId], references: [id])
   competition    Competition    @relation(fields: [competitionId], references: [id])

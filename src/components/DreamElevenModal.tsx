@@ -216,7 +216,7 @@ export default function DreamElevenModal({ isOpen, onClose, roomId }: DreamEleve
                       .then(() => loadTeamData())
                       .catch(err => console.error(err))
                   }}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold shadow-lg"
+                  className="px-6 py-3 bg-white text-black rounded-lg hover:bg-white/90 font-bold shadow-lg"
                 >
                   Get Starting Pack
                 </button>
@@ -232,7 +232,7 @@ export default function DreamElevenModal({ isOpen, onClose, roomId }: DreamEleve
                         onClick={() => handleFormationChange(formation)}
                         className={`px-5 py-2 rounded-lg text-base font-bold ${
                           team.formation === formation
-                            ? 'bg-green-600 text-white shadow-lg'
+                            ? 'bg-white text-black shadow-lg'
                             : 'bg-white/20 text-white hover:bg-white/30'
                         }`}
                       >

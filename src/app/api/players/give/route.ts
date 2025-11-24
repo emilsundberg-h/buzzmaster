@@ -4,20 +4,33 @@ import { db } from '@/lib/db';
 // POST /api/players/give - Give a player/artist to a user
 export async function POST(req: NextRequest) {
   try {
+    console.log('🏆 POST /api/players/give called');
     const { userId, playerId } = await req.json();
+    console.log('🏆 Request data:', { userId, playerId });
 
     if (!userId || !playerId) {
+      console.log('🏆 ERROR: Missing userId or playerId');
       return NextResponse.json({ error: 'userId and playerId required' }, { status: 400 });
     }
 
-    // Find user
-    const user = await db.user.findUnique({
+    console.log('🏆 Looking for user with ID:', userId);
+    // Find user - try both clerkId and database id
+    let user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
     if (!user) {
+      console.log('🏆 Not found by clerkId, trying database id...');
+      user = await db.user.findUnique({
+        where: { id: userId },
+      });
+    }
+
+    if (!user) {
+      console.log('🏆 ERROR: User not found by either clerkId or id');
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    console.log('🏆 Found user:', user.username);
 
     // Find player
     const player = await db.player.findUnique({
@@ -56,15 +69,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(`Gave ${player.name} (${player.type}) to user ${user.username}`);
+    console.log(`🏆 SUCCESS: Gave ${player.name} (${player.type}) to user ${user.username}`);
 
-    return NextResponse.json({ 
+    const response = NextResponse.json({ 
       success: true, 
       userPlayer,
       message: `${player.name} given to ${user.username}` 
     });
+    console.log('🏆 Returning response with status 200');
+    return response;
   } catch (error) {
-    console.error('Error giving player:', error);
+    console.error('🏆 EXCEPTION:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

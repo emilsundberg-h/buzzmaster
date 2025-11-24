@@ -16,6 +16,7 @@ interface AdminControlsProps {
   onToggleFestivalPoster: (enabled: boolean) => void
   users: Array<{
     id: string
+    clerkId?: string
     username: string
     avatarKey: string
     score: number
@@ -57,6 +58,10 @@ export default function AdminControls({
   const [buttonsTrophyId, setButtonsTrophyId] = useState<string | null>(null)
   const [isTrophyModalOpen, setIsTrophyModalOpen] = useState(false)
   const [selectedPlayerInfo, setSelectedPlayerInfo] = useState<{ name: string, type: string } | null>(null)
+  
+  // Give Player/Artist state
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [isTrophyGiveModalOpen, setIsTrophyGiveModalOpen] = useState(false)
 
   // Clear trophy selection when buttons are disabled, someone wins, or round ends
   useEffect(() => {
@@ -91,7 +96,7 @@ export default function AdminControls({
     
     // Fetch player info for display
     try {
-      const response = await fetch(`/api/players?type=${playerType}&category=AWARD`)
+      const response = await fetch(`/api/players/all?type=${playerType}&category=AWARD`)
       if (response.ok) {
         const data = await response.json()
         const player = data.players?.find((p: any) => p.id === playerId)
@@ -102,6 +107,44 @@ export default function AdminControls({
     } catch (error) {
       console.error('Failed to fetch player info:', error)
     }
+  }
+
+  const handleGivePlayerSelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
+    if (!selectedUserId) {
+      alert('Please select a user first')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/players/give', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: selectedUserId, 
+          playerId: playerId 
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert(data.error || 'Failed to give player')
+        return
+      }
+
+      alert(data.message || `${playerType === 'FOOTBALLER' ? 'Footballer' : 'Artist'} given successfully!`)
+      setSelectedUserId('')
+      setIsTrophyGiveModalOpen(false)
+    } catch (error) {
+      console.error('Give player failed:', error)
+      alert('Failed to give player')
+    }
+  }
+
+  const handleGiveTrophyClick = (userId: string) => {
+    // Updated 2025-11-24 19:59
+    setSelectedUserId(userId)
+    setIsTrophyGiveModalOpen(true)
   }
 
   const isRoundActive = Boolean(currentRound && currentRound.startedAt && !currentRound.endedAt)
@@ -319,6 +362,14 @@ export default function AdminControls({
                 </button>
 
                 <button
+                  onClick={() => handleGiveTrophyClick(user.clerkId || user.id)}
+                  className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-bold"
+                  title="Give Trophy"
+                >
+                  🏆
+                </button>
+
+                <button
                   onClick={() => onDeleteUser(user.id)}
                   className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
                 >
@@ -357,11 +408,18 @@ export default function AdminControls({
         )}
       </div>
 
-      {/* Trophy Modal */}
+      {/* Trophy Modal for Button Enable */}
       <TrophyModal
         isOpen={isTrophyModalOpen}
         onClose={() => setIsTrophyModalOpen(false)}
         onSelect={handleTrophySelect}
+      />
+      
+      {/* Trophy Modal for Give Player */}
+      <TrophyModal
+        isOpen={isTrophyGiveModalOpen}
+        onClose={() => setIsTrophyGiveModalOpen(false)}
+        onSelect={handleGivePlayerSelect}
       />
     </div>
   )

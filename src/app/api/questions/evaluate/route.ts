@@ -120,14 +120,15 @@ export async function POST(request: NextRequest) {
             }
 
             // Award trophy if this question has one (only to earliest correct answer)
-            if (usage.trophyId && user) {
+            const actualTrophyId = usage.trophyId || usage.playerTrophyId;
+            if (actualTrophyId && user) {
               // Check if this is a player trophy (format: player_<playerId>)
-              if (usage.trophyId.startsWith('player_')) {
+              if (actualTrophyId.startsWith('player_')) {
                 // Handle player trophy - add directly to user's collection
-                await addTrophyPlayerToDreamEleven(user.id, usage.trophyId);
+                await addTrophyPlayerToDreamEleven(user.id, actualTrophyId);
                 
                 // Get player info for broadcast
-                const playerId = usage.trophyId.replace('player_', '');
+                const playerId = actualTrophyId.replace('player_', '');
                 const player = await db.player.findUnique({
                   where: { id: playerId }
                 });
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
                       userId: user.id,
                       username: user.username,
                       trophy: {
-                        id: usage.trophyId,
+                        id: actualTrophyId,
                         name: player.name,
                         imageKey: player.imageKey,
                       },
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
                   where: {
                     source: "question",
                     sourceId: usage.id,
-                    trophyId: usage.trophyId,
+                    trophyId: actualTrophyId,
                   },
                 });
 
@@ -163,7 +164,7 @@ export async function POST(request: NextRequest) {
                   const trophyWin = await db.trophyWin.create({
                     data: {
                       userId: user.id,
-                      trophyId: usage.trophyId,
+                      trophyId: actualTrophyId,
                       source: "question",
                       sourceId: usage.id,
                     },
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
                   });
 
                   // Check if this traditional trophy is also a player (legacy support)
-                  await addTrophyPlayerToDreamEleven(user.id, usage.trophyId);
+                  await addTrophyPlayerToDreamEleven(user.id, actualTrophyId);
 
                   // Broadcast trophy win
                   if (usage.competition.room) {
@@ -241,42 +242,73 @@ export async function POST(request: NextRequest) {
             }
 
             // Award trophy to earliest correct answer if trophy exists
-            if (i === 0 && usage.trophyId && user) {
-              const existingWin = await db.trophyWin.findFirst({
-                where: {
-                  source: "question",
-                  sourceId: usage.id,
-                  trophyId: usage.trophyId,
-                },
-              });
-
-              if (!existingWin) {
-                const trophyWin = await db.trophyWin.create({
-                  data: {
-                    userId: user.id,
-                    trophyId: usage.trophyId,
-                    source: "question",
-                    sourceId: usage.id,
-                  },
-                  include: {
-                    trophy: true,
-                  },
+            const actualTrophyId2 = usage.trophyId || usage.playerTrophyId;
+            if (i === 0 && actualTrophyId2 && user) {
+              // Check if this is a player trophy
+              if (actualTrophyId2.startsWith('player_')) {
+                // Handle player trophy - add directly to user's collection
+                await addTrophyPlayerToDreamEleven(user.id, actualTrophyId2);
+                
+                // Get player info for broadcast
+                const playerId = actualTrophyId2.replace('player_', '');
+                const player = await db.player.findUnique({
+                  where: { id: playerId }
                 });
 
-                // Broadcast trophy win
-                if (usage.competition.room) {
-                  console.log(
-                    `Broadcasting trophy:won to room ${usage.competition.room.id} for user ${user.username}`
-                  );
+                if (player && usage.competition.room) {
+                  console.log(`Broadcasting player:won for user ${user.username}`);
                   broadcastToRoom(usage.competition.room.id, {
                     type: "trophy:won",
                     data: {
                       userId: user.id,
                       username: user.username,
-                      trophy: trophyWin.trophy,
+                      trophy: {
+                        id: actualTrophyId2,
+                        name: player.name,
+                        imageKey: player.imageKey,
+                      },
                       roomId: usage.competition.room.id,
                     },
                   });
+                }
+              } else {
+                // Handle traditional trophy
+                const existingWin = await db.trophyWin.findFirst({
+                  where: {
+                    source: "question",
+                    sourceId: usage.id,
+                    trophyId: actualTrophyId2,
+                  },
+                });
+
+                if (!existingWin) {
+                  const trophyWin = await db.trophyWin.create({
+                    data: {
+                      userId: user.id,
+                      trophyId: actualTrophyId2,
+                      source: "question",
+                      sourceId: usage.id,
+                    },
+                    include: {
+                      trophy: true,
+                    },
+                  });
+
+                  // Broadcast trophy win
+                  if (usage.competition.room) {
+                    console.log(
+                      `Broadcasting trophy:won to room ${usage.competition.room.id} for user ${user.username}`
+                    );
+                    broadcastToRoom(usage.competition.room.id, {
+                      type: "trophy:won",
+                      data: {
+                        userId: user.id,
+                        username: user.username,
+                        trophy: trophyWin.trophy,
+                        roomId: usage.competition.room.id,
+                      },
+                    });
+                  }
                 }
               }
             }
@@ -325,52 +357,84 @@ export async function POST(request: NextRequest) {
             }
 
             // Award trophy to earliest correct answer if trophy exists (even in ALL_EQUAL mode)
-            if (isFirstCorrect && usage.trophyId && user) {
-              const existingWin = await db.trophyWin.findFirst({
-                where: {
-                  source: "question",
-                  sourceId: usage.id,
-                  trophyId: usage.trophyId,
-                },
-              });
-
-              if (!existingWin) {
-                const trophyWin = await db.trophyWin.create({
-                  data: {
-                    userId: user.id,
-                    trophyId: usage.trophyId,
-                    source: "question",
-                    sourceId: usage.id,
-                  },
-                  include: {
-                    trophy: true,
-                  },
+            const actualTrophyId3 = usage.trophyId || usage.playerTrophyId;
+            if (isFirstCorrect && actualTrophyId3 && user) {
+              // Check if this is a player trophy
+              if (actualTrophyId3.startsWith('player_')) {
+                // Handle player trophy - add directly to user's collection
+                await addTrophyPlayerToDreamEleven(user.id, actualTrophyId3);
+                
+                // Get player info for broadcast
+                const playerId = actualTrophyId3.replace('player_', '');
+                const player = await db.player.findUnique({
+                  where: { id: playerId }
                 });
 
                 console.log(
-                  `Trophy awarded to user ${user.username} (${user.id})`
+                  `Player trophy awarded to user ${user.username} (${user.id})`
                 );
 
-                // Broadcast trophy win
-                if (usage.competition.room) {
-                  console.log(
-                    `Broadcasting trophy:won event to room ${usage.competition.room.id}`
-                  );
+                if (player && usage.competition.room) {
+                  console.log(`Broadcasting player:won for user ${user.username}`);
                   broadcastToRoom(usage.competition.room.id, {
                     type: "trophy:won",
                     data: {
                       userId: user.id,
                       username: user.username,
-                      trophy: trophyWin.trophy,
+                      trophy: {
+                        id: actualTrophyId3,
+                        name: player.name,
+                        imageKey: player.imageKey,
+                      },
                       roomId: usage.competition.room.id,
                     },
                   });
                 }
-                isFirstCorrect = false; // Only first person gets trophy
               } else {
-                isFirstCorrect = false; // Trophy already awarded for this usage
+                // Handle traditional trophy
+                const existingWin = await db.trophyWin.findFirst({
+                  where: {
+                    source: "question",
+                    sourceId: usage.id,
+                    trophyId: actualTrophyId3,
+                  },
+                });
+
+                if (!existingWin) {
+                  const trophyWin = await db.trophyWin.create({
+                    data: {
+                      userId: user.id,
+                      trophyId: actualTrophyId3,
+                      source: "question",
+                      sourceId: usage.id,
+                    },
+                    include: {
+                      trophy: true,
+                    },
+                  });
+
+                  console.log(
+                    `Trophy awarded to user ${user.username} (${user.id})`
+                  );
+
+                  // Broadcast trophy win
+                  if (usage.competition.room) {
+                    console.log(
+                      `Broadcasting trophy:won event to room ${usage.competition.room.id}`
+                    );
+                    broadcastToRoom(usage.competition.room.id, {
+                      type: "trophy:won",
+                      data: {
+                        userId: user.id,
+                        username: user.username,
+                        trophy: trophyWin.trophy,
+                      roomId: usage.competition.room.id,
+                    },
+                  });
+                }
               }
             }
+            isFirstCorrect = false; // Only first person gets trophy
           }
           break;
       }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useUser, useClerk } from '@clerk/nextjs'
 import ArkanoidChallenge from '@/components/ArkanoidChallenge'
 import SimonChallenge from '@/components/SimonChallenge'
 import AvatarPicker from '@/components/AvatarPicker'
@@ -55,6 +56,9 @@ interface RoundStatus {
 }
 
 export default function DevUserPage() {
+  // Try Clerk first, fallback to localStorage for dev
+  const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
+  const { signOut } = useClerk()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null)
   const [roundStatus, setRoundStatus] = useState<RoundStatus | null>(null)
@@ -88,17 +92,39 @@ export default function DevUserPage() {
   }, [roundStatus])
   const [selectedAvatar, setSelectedAvatar] = useState<string>('')
   const [username, setUsername] = useState('')
-  const [userId, setUserId] = useState(() => {
-    // Try to get userId from localStorage first
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dev-user-id')
-      if (saved) return saved
+  const [userId, setUserId] = useState<string>('')
+  const [isClerkMode, setIsClerkMode] = useState(false)
+  
+  // Initialize userId from Clerk or localStorage
+  useEffect(() => {
+    if (clerkLoaded) {
+      if (clerkUser) {
+        // Clerk user detected - use Clerk ID
+        console.log('Clerk user detected:', clerkUser.id)
+        setUserId(clerkUser.id)
+        setIsClerkMode(true)
+      } else if (typeof window !== 'undefined') {
+        // No Clerk - use localStorage (dev mode)
+        const saved = localStorage.getItem('dev-user-id')
+        if (saved) {
+          setUserId(saved)
+        } else {
+          const newId = `dev-user-${Math.random().toString(36).substring(2, 15)}`
+          setUserId(newId)
+        }
+        setIsClerkMode(false)
+      }
     }
-    
-    // Generate a new one if none exists
-    return `dev-user-${Math.random().toString(36).substring(2, 15)}`
-  })
+  }, [clerkLoaded, clerkUser])
   const [loading, setLoading] = useState(true)
+  const [clerkInitializing, setClerkInitializing] = useState(true)
+  
+  // Wait for Clerk to initialize
+  useEffect(() => {
+    if (clerkLoaded) {
+      setClerkInitializing(false)
+    }
+  }, [clerkLoaded])
   const [pressing, setPressing] = useState(false)
   const [showRoomJoin, setShowRoomJoin] = useState(false)
   const [showDreamEleven, setShowDreamEleven] = useState(false)
@@ -629,16 +655,22 @@ export default function DevUserPage() {
 
 
   const handleSetup = async () => {
-    if (!username || !selectedAvatar || !userId) return
+    if (!username || !selectedAvatar) return
     
     try {
-      // Save userId to localStorage for persistence
-      localStorage.setItem('dev-user-id', userId)
+      // Save userId to localStorage for persistence (dev mode only)
+      if (!isClerkMode) {
+        localStorage.setItem('dev-user-id', userId)
+      }
       
       const response = await fetchWithUserId('/api/profile/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, avatarKey: selectedAvatar, userId })
+        body: JSON.stringify({ 
+          username, 
+          avatarKey: selectedAvatar, 
+          userId: !isClerkMode ? userId : undefined // Only send in dev mode
+        })
       })
       
       if (response.ok) {
@@ -725,6 +757,18 @@ export default function DevUserPage() {
     }
   }
 
+  const handleLogout = async () => {
+    if (isClerkMode && clerkUser) {
+      // Clerk mode - sign out and redirect to sign-in
+      await signOut({ redirectUrl: '/sign-in' })
+    } else {
+      // Dev mode - clear localStorage
+      localStorage.removeItem('dev-user-id')
+      localStorage.removeItem('currentRoom')
+      window.location.href = '/dev-user'
+    }
+  }
+
   const handleLeaveRoom = async () => {
     try {
       const response = await fetchWithUserId('/api/rooms/leave', {
@@ -773,7 +817,7 @@ export default function DevUserPage() {
     }
   }
 
-  if (loading) {
+  if (loading || clerkInitializing || !userId) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
         <div className="text-xl">Loading...</div>
@@ -786,7 +830,26 @@ export default function DevUserPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
         <div className="p-8 rounded-lg shadow-lg max-w-md w-full" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border)' }}>
-          <h1 className="text-2xl font-bold text-center mb-6">Setup Your Profile (DEV MODE)</h1>
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm rounded transition-colors"
+              style={{ 
+                border: '2px solid var(--border)', 
+                color: 'var(--foreground)',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              Logout
+            </button>
+          </div>
+          <h1 className="text-2xl font-bold text-center mb-6">Setup Your Profile{!isClerkMode && ' (DEV MODE)'}</h1>
           
           <div className="space-y-6">
             <div>
@@ -807,26 +870,28 @@ export default function DevUserPage() {
               />
             </div>
             
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
-                User ID (for testing)
-              </label>
-              <input
-                type="text"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 font-mono text-sm"
-                style={{ 
-                  backgroundColor: 'var(--input-bg)', 
-                  borderColor: 'var(--border)',
-                  color: 'var(--foreground)'
-                }}
-                placeholder="Enter unique user ID"
-              />
-              <p className="text-xs opacity-70 mt-1">
-                Each tab/browser needs a unique ID for testing multiple users
-              </p>
-            </div>
+            {!isClerkMode && (
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+                  User ID (for testing)
+                </label>
+                <input
+                  type="text"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 font-mono text-sm"
+                  style={{ 
+                    backgroundColor: 'var(--input-bg)', 
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)'
+                  }}
+                  placeholder="Enter unique user ID"
+                />
+                <p className="text-xs opacity-70 mt-1">
+                  Each tab/browser needs a unique ID for testing multiple users
+                </p>
+              </div>
+            )}
             
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
@@ -840,7 +905,7 @@ export default function DevUserPage() {
             
             <button
               onClick={handleSetup}
-              disabled={!username || !selectedAvatar || !userId}
+              disabled={!username || !selectedAvatar}
               className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               Complete Setup
@@ -856,6 +921,25 @@ export default function DevUserPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
         <div className="p-8 rounded-lg shadow-lg max-w-md w-full text-center" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border)' }}>
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm rounded transition-colors"
+              style={{ 
+                border: '2px solid var(--border)', 
+                color: 'var(--foreground)',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              Logout
+            </button>
+          </div>
           <h1 className="text-2xl font-bold mb-6">Welcome, {profile.username}!</h1>
           <p className="opacity-80 mb-6">You need to join a competition room to start playing.</p>
           <button
@@ -906,8 +990,27 @@ export default function DevUserPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm rounded transition-colors"
+              style={{ 
+                border: '2px solid var(--border)', 
+                color: 'var(--foreground)',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              Logout
+            </button>
+          </div>
           <h1 className="text-3xl font-bold mb-2">
-            Welcome, {profile.username}! (DEV MODE)
+            Welcome, {profile.username}!{!isClerkMode && ' (DEV MODE)'}
           </h1>
           <p className="text-xl text-gray-600">
             Your Score: <span className="font-bold text-blue-600">{profile.score}</span>

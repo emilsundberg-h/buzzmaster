@@ -20,18 +20,20 @@ interface TrophyModalProps {
 export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalProps) {
   const [selectedType, setSelectedType] = useState<'FOOTBALLER' | 'FESTIVAL'>('FOOTBALLER')
   const [players, setPlayers] = useState<Player[]>([])
+  const [ownedPlayerIds, setOwnedPlayerIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (isOpen) {
       loadPlayers()
+      loadOwnedStatus()
     }
   }, [isOpen, selectedType])
 
   const loadPlayers = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/players?type=${selectedType}&category=AWARD`)
+      const response = await fetch(`/api/players/all?type=${selectedType}&category=AWARD`)
       if (response.ok) {
         const data = await response.json()
         setPlayers(data.players || [])
@@ -41,6 +43,19 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
       setPlayers([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadOwnedStatus = async () => {
+    try {
+      const response = await fetch('/api/players/owned-status')
+      if (response.ok) {
+        const data = await response.json()
+        setOwnedPlayerIds(data.ownedPlayerIds || [])
+      }
+    } catch (error) {
+      console.error('Error loading owned status:', error)
+      setOwnedPlayerIds([])
     }
   }
 
@@ -68,7 +83,7 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
           {/* Header */}
           <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-white/20 p-3 sm:p-4 z-10 rounded-t-xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">🏆 Välj Trofé</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">🏆 Choose Trophy</h2>
               <button
                 onClick={onClose}
                 className="text-white hover:text-gray-300 text-3xl leading-none"
@@ -83,7 +98,7 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
                 onClick={() => setSelectedType('FOOTBALLER')}
                 className={`px-6 py-3 rounded-lg text-base font-bold transition-all ${
                   selectedType === 'FOOTBALLER'
-                    ? 'bg-green-600 text-white shadow-lg'
+                    ? 'bg-white text-black shadow-lg'
                     : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
               >
@@ -93,7 +108,7 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
                 onClick={() => setSelectedType('FESTIVAL')}
                 className={`px-6 py-3 rounded-lg text-base font-bold transition-all ${
                   selectedType === 'FESTIVAL'
-                    ? 'bg-green-600 text-white shadow-lg'
+                    ? 'bg-white text-black shadow-lg'
                     : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
               >
@@ -106,37 +121,57 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
           <div className="p-4 bg-black/60 backdrop-blur-md overflow-y-auto max-h-[calc(90vh-180px)] rounded-b-xl">
             {loading ? (
               <div className="text-center py-12">
-                <p className="text-xl text-white">Laddar...</p>
+                <p className="text-xl text-white">Loading...</p>
               </div>
             ) : players.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-xl text-white">
-                  Inga {selectedType === 'FOOTBALLER' ? 'fotbollsspelare' : 'musiker'} tillgängliga
+                  No {selectedType === 'FOOTBALLER' ? 'footballers' : 'musicians'} available
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {players.map((player) => (
+                {players
+                  .sort((a, b) => {
+                    const aOwned = ownedPlayerIds.includes(a.id)
+                    const bOwned = ownedPlayerIds.includes(b.id)
+                    if (aOwned === bOwned) return 0
+                    return aOwned ? 1 : -1 // Owned players last
+                  })
+                  .map((player) => {
+                  const isOwned = ownedPlayerIds.includes(player.id)
+                  return (
                   <div
                     key={player.id}
                     onClick={() => handlePlayerSelect(player.id)}
-                    className="cursor-pointer bg-white/10 hover:bg-white/20 rounded-lg p-4 transition-all hover:scale-105 border-2 border-transparent hover:border-green-500"
+                    className={`cursor-pointer rounded-lg p-4 transition-all border-2 ${
+                      isOwned 
+                        ? 'bg-white/5 hover:bg-white/10 border-transparent hover:border-white/30 opacity-60' 
+                        : 'bg-white/10 hover:bg-white/20 border-transparent hover:border-white/50 hover:scale-105'
+                    }`}
                   >
-                    <div className="aspect-square relative mb-2 bg-white/5 rounded-lg overflow-hidden">
+                    <div className="aspect-square relative mb-2 rounded-full overflow-hidden">
                       <img
                         src={`/${player.imageKey}`}
                         alt={player.name}
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover ${
+                          isOwned ? 'grayscale' : ''
+                        }`}
                       />
                     </div>
                     <div className="text-center">
-                      <p className="text-white font-bold text-sm truncate">{player.name}</p>
+                      <p className={`font-bold text-sm truncate ${
+                        isOwned ? 'text-white/40' : 'text-white'
+                      }`}>{player.name}</p>
                       {selectedType === 'FOOTBALLER' && (
-                        <p className="text-white/70 text-xs">{player.position}</p>
+                        <p className={`text-xs ${
+                          isOwned ? 'text-white/30' : 'text-white/70'
+                        }`}>{player.position}</p>
                       )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

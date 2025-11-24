@@ -21,7 +21,7 @@ interface TrophyPickerProps {
 export default function TrophyPicker({ 
   selectedTrophyId, 
   onSelect,
-  label = "Välj trofé (valfritt)" 
+  label = "Choose trophy (optional)" 
 }: TrophyPickerProps) {
   const [trophies, setTrophies] = useState<Trophy[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,13 +45,13 @@ export default function TrophyPicker({
   }
 
   if (loading) {
-    return <div className="text-sm opacity-70">Laddar trofér...</div>
+    return <div className="text-sm opacity-70">Loading trophies...</div>
   }
 
   if (trophies.length === 0) {
     return (
       <div className="text-sm opacity-70">
-        Inga trofér tillgängliga. Kör seed först.
+        No trophies available. Run seed first.
       </div>
     )
   }
@@ -78,7 +78,7 @@ export default function TrophyPicker({
         >
           <div className="text-center">
             <div className="text-4xl mb-2">❌</div>
-            <div className="text-xs font-medium">Ingen trofé</div>
+            <div className="text-xs font-medium">No trophy</div>
           </div>
         </div>
 
@@ -120,7 +120,7 @@ export default function TrophyPicker({
 
       {selectedTrophyId && (
         <div className="text-xs opacity-70 mt-2">
-          Trofén kommer visas som en inslagen present för användare
+          Trophy will be shown as a wrapped present for users
         </div>
       )}
     </div>

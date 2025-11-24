@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useUser, useClerk } from '@clerk/nextjs'
 import Image from 'next/image'
 import { getAvatarPath } from '@/lib/avatar-helpers'
 import ConfirmModal from '@/components/ConfirmModal'
@@ -13,11 +14,13 @@ import QuestionManager from '@/components/QuestionManager'
 import CategoryGameManager from '@/components/CategoryGameManager'
 import ThemeSelector from '@/components/ThemeSelector'
 import ChatMessenger from '@/components/ChatMessenger'
+import TrophyModal from '@/components/TrophyModal'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme, Theme } from '@/contexts/ThemeContext'
 
 interface User {
   id: string
+  clerkId: string
   username: string
   avatarKey: string
   score: number
@@ -27,6 +30,7 @@ interface Membership {
   id: string
   user: {
     id: string
+    clerkId: string
     username: string
     avatarKey: string
     score: number
@@ -63,6 +67,20 @@ interface Press {
 }
 
 export default function DevAdminPage() {
+  // Clerk auth support
+  const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
+  const { signOut } = useClerk()
+  const [isClerkMode, setIsClerkMode] = useState(false)
+  
+  // Detect Clerk mode
+  useEffect(() => {
+    if (clerkLoaded) {
+      setIsClerkMode(!!clerkUser)
+      if (clerkUser) {
+        console.log('Dev-admin: Clerk user detected:', clerkUser.id)
+      }
+    }
+  }, [clerkLoaded, clerkUser])
   const [users, setUsers] = useState<User[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null)
@@ -106,10 +124,8 @@ export default function DevAdminPage() {
   const [simonChillMode, setSimonChillMode] = useState(false)
   
   // Give Player/Artist state
-  const [availablePlayers, setAvailablePlayers] = useState<Array<{ id: string; name: string; type: string; position: string }>>([])
   const [selectedUserId, setSelectedUserId] = useState<string>('')
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string>('')
-  const [playerFilter, setPlayerFilter] = useState<'ALL' | 'FOOTBALLER' | 'FESTIVAL'>('ALL')
+  const [isTrophyGiveModalOpen, setIsTrophyGiveModalOpen] = useState(false)
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -152,7 +168,7 @@ export default function DevAdminPage() {
 
   const fetchRooms = useCallback(async () => {
     try {
-      const response = await fetch('/api/rooms')
+      const response = await fetch('/api/rooms/list')
       const data = await response.json()
       setRooms(data.rooms || [])
       if (data.rooms && data.rooms.length > 0 && !currentRoom) {
@@ -455,7 +471,7 @@ export default function DevAdminPage() {
     if (!newRoomName) return
     
     try {
-      const response = await fetch('/api/rooms', {
+      const response = await fetch('/api/rooms/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newRoomName })
@@ -812,25 +828,10 @@ export default function DevAdminPage() {
     }
   }
 
-  // Fetch available players/artists
-  const fetchAvailablePlayers = async () => {
-    try {
-      console.log('Fetching available players...')
-      const response = await fetch('/api/players')
-      const data = await response.json()
-      const players = data.players || []
-      console.log('Players fetched:', players.length, 'players')
-      console.log('First few players:', players.slice(0, 3))
-      setAvailablePlayers(players)
-    } catch (error) {
-      console.error('Failed to fetch players:', error)
-    }
-  }
-
-  // Give player/artist to user
-  const handleGivePlayer = async () => {
-    if (!selectedUserId || !selectedPlayerId) {
-      alert('Please select both a user and a player/artist')
+  // Give player/artist to user (called from TrophyModal)
+  const handleGivePlayerSelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
+    if (!selectedUserId) {
+      alert('Please select a user first')
       return
     }
 
@@ -840,7 +841,7 @@ export default function DevAdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: selectedUserId, 
-          playerId: selectedPlayerId 
+          playerId: playerId 
         })
       })
 
@@ -851,18 +852,14 @@ export default function DevAdminPage() {
         return
       }
 
-      alert(data.message || 'Player given successfully!')
-      setSelectedPlayerId('')
+      alert(data.message || `${playerType === 'FOOTBALLER' ? 'Footballer' : 'Artist'} given successfully!`)
+      setSelectedUserId('')
+      setIsTrophyGiveModalOpen(false)
     } catch (error) {
       console.error('Give player failed:', error)
       alert('Failed to give player')
     }
   }
-
-  // Fetch players on mount
-  useEffect(() => {
-    fetchAvailablePlayers()
-  }, [])
 
   const handleKickUser = async (userId: string, roomId: string) => {
     try {
@@ -901,7 +898,7 @@ export default function DevAdminPage() {
     }
   }
 
-  if (loading) {
+  if (loading || !clerkLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading...</div>
@@ -915,11 +912,36 @@ export default function DevAdminPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={async () => {
+                if (isClerkMode && clerkUser) {
+                  await signOut({ redirectUrl: '/sign-in' })
+                } else {
+                  window.location.href = '/dev-admin'
+                }
+              }}
+              className="px-4 py-2 text-sm rounded transition-colors"
+              style={{ 
+                border: '2px solid var(--border)', 
+                color: 'var(--foreground)',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              Logout
+            </button>
+          </div>
           <h1 className="text-3xl font-bold mb-2">
-            Admin Dashboard (DEV MODE)
+            Admin Dashboard{!isClerkMode && ' (DEV MODE)'}
           </h1>
           <p className="text-lg opacity-80">
-            Welcome, Admin User
+            Welcome, {isClerkMode && clerkUser ? (clerkUser.firstName || clerkUser.emailAddresses[0].emailAddress) : 'Admin User'}
           </p>
           <div className="mt-4 space-x-2">
             <span className={`px-3 py-1 rounded text-sm ${
@@ -1176,28 +1198,6 @@ export default function DevAdminPage() {
             <h2 className="text-xl font-bold mb-4">🎁 Give Player/Artist to Winner</h2>
             
             <div className="space-y-4">
-              {/* Filter buttons */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => setPlayerFilter('ALL')}
-                  className={`px-4 py-2 rounded ${playerFilter === 'ALL' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setPlayerFilter('FOOTBALLER')}
-                  className={`px-4 py-2 rounded ${playerFilter === 'FOOTBALLER' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
-                >
-                  ⚽ Footballers
-                </button>
-                <button
-                  onClick={() => setPlayerFilter('FESTIVAL')}
-                  className={`px-4 py-2 rounded ${playerFilter === 'FESTIVAL' ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}
-                >
-                  🎵 Artists
-                </button>
-              </div>
-
               {/* User selection */}
               <div>
                 <label className="block font-medium mb-2">Select User (Winner)</label>
@@ -1208,43 +1208,33 @@ export default function DevAdminPage() {
                 >
                   <option value="">-- Select User --</option>
                   {currentRoom.memberships.map((m) => (
-                    <option key={m.user.id} value={m.user.id}>
+                    <option key={m.user.id} value={m.user.clerkId}>
                       {m.user.username} (Score: {m.user.score})
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Player/Artist selection */}
-              <div>
-                <label className="block font-medium mb-2">
-                  Select {playerFilter === 'FOOTBALLER' ? 'Footballer' : playerFilter === 'FESTIVAL' ? 'Artist' : 'Player/Artist'}
-                </label>
-                <select
-                  value={selectedPlayerId}
-                  onChange={(e) => setSelectedPlayerId(e.target.value)}
-                  className="w-full p-2 border rounded bg-white text-black max-h-64 overflow-y-auto"
-                >
-                  <option value="">-- Select {playerFilter === 'FOOTBALLER' ? 'Footballer' : playerFilter === 'FESTIVAL' ? 'Artist' : 'Player/Artist'} --</option>
-                  {availablePlayers
-                    .filter(p => playerFilter === 'ALL' || p.type === playerFilter)
-                    .map((player) => (
-                      <option key={player.id} value={player.id}>
-                        {player.type === 'FOOTBALLER' ? '⚽' : '🎵'} {player.name} ({player.position})
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              {/* Give button */}
+              {/* Choose Player/Artist button */}
               <button
-                onClick={handleGivePlayer}
-                disabled={!selectedUserId || !selectedPlayerId}
-                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold"
+                onClick={() => setIsTrophyGiveModalOpen(true)}
+                disabled={!selectedUserId}
+                className="w-full px-6 py-3 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: selectedUserId ? 'var(--primary)' : 'var(--muted)',
+                  color: 'white'
+                }}
               >
-                Give {playerFilter === 'FOOTBALLER' ? 'Footballer' : playerFilter === 'FESTIVAL' ? 'Artist' : 'Player/Artist'} to User
+                🏆 Choose Player/Artist to Give
               </button>
             </div>
+
+            {/* Trophy Modal */}
+            <TrophyModal
+              isOpen={isTrophyGiveModalOpen}
+              onClose={() => setIsTrophyGiveModalOpen(false)}
+              onSelect={handleGivePlayerSelect}
+            />
           </div>
         )}
 

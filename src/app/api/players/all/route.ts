@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       ],
     });
 
-    return NextResponse.json(players);
+    return NextResponse.json({ players });
   } catch (error) {
     console.error('Error fetching players:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
