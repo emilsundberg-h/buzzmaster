@@ -12,26 +12,36 @@ function rankAndPoints(
     ...p,
     eliminatedAt: p.clerkId === survivorClerkId ? Number.POSITIVE_INFINITY : (p.eliminatedAt ?? 0),
   }))
-  // Higher eliminatedAt means lasted longer (survivor wins)
-  // Tie-break: use score (for Simon levels) if no bricks, otherwise bricks (for Arkanoid)
+  
+  console.log('📊 Enriched participants (after setting survivor eliminatedAt):')
+  enriched.forEach(p => console.log(`  - ${p.clerkId}: score=${p.score}, eliminatedAt=${p.eliminatedAt}`))
+  
+  // Sort participants by their performance
   enriched.sort((a, b) => {
-    if (a.eliminatedAt !== b.eliminatedAt) return a.eliminatedAt - b.eliminatedAt > 0 ? -1 : 1;
-    
-    // If both have bricks, use bricks. Otherwise use score (for Simon game levels)
     const aBricks = a.bricks ?? 0
     const bBricks = b.bricks ?? 0
     const aScore = a.score ?? 0
     const bScore = b.score ?? 0
     
+    // For Simon Says (no bricks): score is primary, eliminatedAt is tie-breaker
+    // For Arkanoid (has bricks): bricks is primary, then score, then eliminatedAt
     if (aBricks > 0 || bBricks > 0) {
-      // At least one has bricks - use bricks as primary, score as secondary
+      // Arkanoid game - sort by bricks first
       if (bBricks !== aBricks) return bBricks - aBricks
-      return bScore - aScore
+      if (bScore !== aScore) return bScore - aScore
+      // Tie-breaker: higher eliminatedAt wins (lasted longer)
+      return a.eliminatedAt - b.eliminatedAt > 0 ? -1 : 1
     } else {
-      // No bricks - use score as primary (Simon game)
-      return bScore - aScore
+      // Simon Says game - sort by score (level) first (descending: higher score = better)
+      if (bScore !== aScore) {
+        console.log(`Comparing scores: ${a.clerkId}(${aScore}) vs ${b.clerkId}(${bScore}) → ${bScore - aScore}`)
+        return bScore - aScore
+      }
+      // Tie-breaker: lower eliminatedAt wins (reached same level but was faster/died first)
+      return a.eliminatedAt - b.eliminatedAt > 0 ? 1 : -1
     }
   })
+  
   const pointsByPlace = [10, 6, 4, 2]
   const ranking = enriched.map((p, idx) => ({ clerkId: p.clerkId, place: idx + 1, points: pointsByPlace[idx] ?? 1 }))
   return ranking
@@ -93,31 +103,33 @@ export async function POST(req: NextRequest) {
       console.log(`After elimination - alive count: ${newAlive.length}, chill mode: ${chillMode}`)
 
       // End challenge based on mode:
-      // - Normal mode: end when 1 or 0 remain
+      // - Normal mode: end when 0 remain (last player eliminates themselves)
       // - Chill mode: end only when 0 remain
-      const shouldEnd = chillMode ? newAlive.length === 0 : newAlive.length <= 1
+      // IMPORTANT: Don't end when 1 remains - let the survivor submit their final score first
+      const shouldEnd = newAlive.length === 0
 
       console.log(`Should end: ${shouldEnd}`)
 
       if (shouldEnd) {
-        // In chill mode, when everyone has been eliminated, the last person to die (current player) is the winner
-        // In normal mode, the last survivor wins
-        const survivor = chillMode && newAlive.length === 0 
-          ? clerkId  // Last person to die wins in chill mode
-          : newAlive.length === 1 
-            ? newAlive[0]  // Last survivor wins in normal mode
-            : null  // No winner if everyone died in normal mode (shouldn't happen)
-
-        // Build participants list ONLY from players who actually played (in alive list at start)
-        const startedAlive = JSON.parse(challenge.alive || "[]")
-        const participants = startedAlive.map((cid: string) => ({
+        // All players have submitted their scores (newAlive.length === 0)
+        // Build participants list from ALL players who submitted results
+        // CRITICAL: Use results object, NOT alive array (which has been updated during eliminations)
+        const participants = Object.keys(results).map((cid: string) => ({
           clerkId: cid,
           eliminatedAt: results[cid]?.eliminatedAt,
           bricks: results[cid]?.bricks ?? 0,
           score: results[cid]?.score ?? 0,
         }))
-        console.log('Challenge ended. Participants who played:', participants.map((p: any) => p.clerkId))
-        const ranking = rankAndPoints(participants, survivor)
+        console.log('🎯 Challenge ended. All players have submitted. Participants:')
+        participants.forEach((p: any) => console.log(`  - ${p.clerkId}: score=${p.score}, eliminatedAt=${p.eliminatedAt}, bricks=${p.bricks}`))
+        
+        // No survivor logic needed - rank purely by score
+        const ranking = rankAndPoints(participants, null)
+        console.log('🏆 Ranking AFTER rankAndPoints:')
+        ranking.forEach((r: any) => console.log(`  - Place ${r.place}: ${r.clerkId} (${r.points} pts)`))
+        
+        // Winner is the person ranked first (highest score in Simon Says)
+        const actualWinner = ranking[0]?.clerkId || null
         
         // Add usernames to ranking for display
         const rankingWithUsernames = ranking.map((r: any) => {
@@ -129,11 +141,9 @@ export async function POST(req: NextRequest) {
           }
         })
         
-        // Find winner username for better logging
-        const winnerMembership = survivor ? (challenge.room.memberships || []).find((m: any) => m.user.clerkId === survivor) : null
+        const winnerMembership = actualWinner ? (challenge.room.memberships || []).find((m: any) => m.user.clerkId === actualWinner) : null
         const winnerUsername = winnerMembership?.user?.username || 'No winner'
-        const winnerContext = chillMode && newAlive.length === 0 ? 'last to be eliminated' : 'last survivor'
-        console.log(`🏆 Challenge winner (${winnerContext}): ${winnerUsername} (${survivor || 'none'})`)
+        console.log(`🏆 Challenge winner (place 1): ${winnerUsername} (${actualWinner || 'none'})`)
 
         // Parse bets to handle all-in wagers
         const bets = JSON.parse(challenge.bets || "{}")
@@ -177,7 +187,7 @@ export async function POST(req: NextRequest) {
 
         broadcast("challenge:ended", {
           id: challenge.id,
-          winnerId: survivor,
+          winnerId: actualWinner,
           ranking: rankingWithUsernames,
         })
         broadcast("scores:updated", {})

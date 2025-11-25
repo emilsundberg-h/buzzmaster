@@ -129,6 +129,7 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
       submittedRef.current = false
       setBetPlaced(false)
       betPlacedRef.current = false
+      isProcessingClickRef.current = false  // Reset click processing state
       setShowBetModal(false)
       setShowWinner(false)
       setSelectedBet(null)
@@ -171,6 +172,8 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
           if (!autoPlaced) {
             autoPlaced = true
             placeBet(false)
+            // Extra safeguard to ensure modal closes
+            setTimeout(() => setShowBetModal(false), 100)
           }
         }, 10000)
         
@@ -183,12 +186,19 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
     if (actual.type === 'challenge:playerEliminated') {
       if (actual.data?.id !== challenge.id) return
       const eliminatedUserId = actual.data?.userId
+      const aliveCount = actual.data?.aliveCount
       
       // Update alive list
       setChallenge(prev => ({
         ...prev,
         alive: prev.alive.filter(id => id !== eliminatedUserId)
       }))
+      
+      // When you're the last one standing, you continue playing until you fail
+      // No auto-submit - let the survivor prove they're better by completing more levels
+      if (aliveCount === 1 && currentUserId !== eliminatedUserId) {
+        console.log(`🏆 You're the last one standing! Keep playing to maximize your score!`)
+      }
     }
     if (actual.type === 'challenge:ended') {
       if (actual.data?.id !== challenge.id) return
@@ -218,7 +228,7 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
         console.log('Current user did not win, hiding game UI')
       }
     }
-  }, [onWebSocketMessage, currentRoomId, currentUserId, challenge.id, placeBet])
+  }, [onWebSocketMessage, currentRoomId, currentUserId, challenge.id, placeBet, level, fetchWithUserId])
 
   // Update waiting countdown display
   useEffect(() => {
@@ -261,6 +271,7 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
       const timeout = setTimeout(() => {
         console.log('Game start time reached - starting Simon game now!')
         setGameStartTime(null)
+        setShowBetModal(false)  // Ensure modal is closed when game starts
       }, waitTime)
       return () => clearTimeout(timeout)
     }
@@ -311,8 +322,8 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
   }, [challenge.config, level, generateSequenceForLevel, playSequence])
 
   const handleButtonClick = async (index: number) => {
-    if (isPlaying || eliminated || !betPlaced) {
-      console.log('Click ignored:', { isPlaying, eliminated, betPlaced })
+    if (isPlaying || eliminated || !betPlaced || !challenge.active) {
+      console.log('Click ignored:', { isPlaying, eliminated, betPlaced, challengeActive: challenge.active })
       return
     }
     
@@ -343,9 +354,11 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
     
     if (expectedColor !== index) {
       // Wrong! Game over
-      console.log(`WRONG! Eliminating player at level ${level}`)
+      // Score is the number of levels COMPLETED, not the current level where you failed
+      const completedLevels = level - 1
+      console.log(`WRONG! Failed on level ${level}. Completed levels: ${completedLevels}`)
       isProcessingClickRef.current = false
-      eliminatePlayer(level)
+      eliminatePlayer(completedLevels)
       return
     }
     
@@ -361,8 +374,18 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
     
     // Check if sequence complete
     if (newPlayerSeq.length === currentSequence.length) {
-      // Correct! Next level
+      // Correct! Completed this level
       console.log(`Sequence complete! Moving to level ${level + 1}`)
+      
+      // If you're the last one standing, auto-submit after completing a level
+      // You've proven you're at least as good as everyone else
+      if (challenge.alive.length === 1 && !submittedRef.current) {
+        console.log(`🏆 Last one standing and completed level ${level}! Auto-submitting score: ${level}`)
+        isProcessingClickRef.current = false
+        eliminatePlayer(level)  // Submit score for completed levels
+        return
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 500))
       addToSequence()
       isProcessingClickRef.current = false
