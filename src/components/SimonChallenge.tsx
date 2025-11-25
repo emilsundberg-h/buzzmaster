@@ -151,22 +151,20 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
         console.log('Bet modal - Current user:', currentUserId, 'Found user:', currentUser, 'Score:', score)
         setCurrentScore(score)
         setShowBetModal(true)
-        setBetCountdown(10)
         
         let autoPlaced = false
         
-        // Countdown timer
-        const countdownInterval = setInterval(() => {
-          setBetCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval)
-              return 0
-            }
-            return prev - 1
-          })
-        }, 1000)
+        // Countdown timer - sync with gameStartTime instead of using fixed 10 seconds
+        const updateBetCountdown = () => {
+          const remaining = Math.ceil((startTime - Date.now()) / 1000)
+          setBetCountdown(remaining > 0 ? remaining : 0)
+        }
         
-        // Auto-place normal bet after 10 seconds if no choice made
+        updateBetCountdown()
+        const countdownInterval = setInterval(updateBetCountdown, 100)
+        
+        // Auto-place normal bet when game starts if no choice made
+        const timeUntilStart = startTime - Date.now()
         const autoTimeout = setTimeout(() => {
           clearInterval(countdownInterval)
           if (!autoPlaced) {
@@ -175,7 +173,7 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
             // Extra safeguard to ensure modal closes
             setTimeout(() => setShowBetModal(false), 100)
           }
-        }, 10000)
+        }, timeUntilStart)
         
         return () => {
           clearInterval(countdownInterval)
@@ -431,7 +429,7 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
             </div>
             {betCountdown > 0 && (
               <div className="text-center mb-4 text-sm opacity-70">
-                Auto-selecting normal in {betCountdown}s...
+                Game starting in {betCountdown}s...
               </div>
             )}
             <div className="space-y-3">
