@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { broadcastToRoom } from "@/lib/websocket";
+import { addTrophyPlayerToDreamEleven } from "@/lib/trophy-helpers";
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,36 +69,68 @@ export async function POST(request: NextRequest) {
         });
 
         // Award trophy if this game has one
-        if (game.trophyId) {
-          console.log(
-            `Awarding trophy ${game.trophyId} to user ${user.username} for winning category game`
-          );
+        const actualTrophyId = game.trophyId || (game as typeof game & { playerTrophyId?: string | null }).playerTrophyId;
+        if (actualTrophyId) {
+          // Check if this is a player trophy (format: player_<playerId>)
+          if (actualTrophyId.startsWith('player_')) {
+            // Handle player trophy - add directly to user's collection
+            await addTrophyPlayerToDreamEleven(user.id, actualTrophyId);
+            
+            // Get player info for broadcast
+            const playerId = actualTrophyId.replace('player_', '');
+            const player = await db.player.findUnique({
+              where: { id: playerId }
+            });
 
-          const trophyWin = await db.trophyWin.create({
-            data: {
-              userId: user.id,
-              trophyId: game.trophyId,
-              source: "category",
-              sourceId: gameId,
-            },
-            include: {
-              trophy: true,
-            },
-          });
+            if (player) {
+              console.log(`Broadcasting player:won for user ${user.username}`);
+              broadcastToRoom(game.competition.room.id, {
+                type: "trophy:won",
+                data: {
+                  userId: user.id,
+                  username: user.username,
+                  trophy: {
+                    name: player.name,
+                    imageKey: player.imageKey,
+                    description: `${player.type === 'FOOTBALLER' ? '⚽ Footballer' : '🎵 Artist'}`
+                  },
+                  points: game.winnerPoints,
+                  roomId: game.competition.room.id,
+                },
+              });
+            }
+          } else {
+            // Regular trophy
+            console.log(
+              `Awarding trophy ${game.trophyId} to user ${user.username} for winning category game`
+            );
 
-          // Broadcast trophy win
-          console.log(
-            `Broadcasting trophy:won to room ${game.competition.room.id} for user ${user.username}`
-          );
-          broadcastToRoom(game.competition.room.id, {
-            type: "trophy:won",
-            data: {
-              userId: user.id,
-              username: user.username,
-              trophy: trophyWin.trophy,
-              roomId: game.competition.room.id,
-            },
-          });
+            const trophyWin = await db.trophyWin.create({
+              data: {
+                userId: user.id,
+                trophyId: game.trophyId!,
+                source: "category",
+                sourceId: gameId,
+              },
+              include: {
+                trophy: true,
+              },
+            });
+
+            // Broadcast trophy win
+            console.log(
+              `Broadcasting trophy:won to room ${game.competition.room.id} for user ${user.username}`
+            );
+            broadcastToRoom(game.competition.room.id, {
+              type: "trophy:won",
+              data: {
+                userId: user.id,
+                username: user.username,
+                trophy: trophyWin.trophy,
+                roomId: game.competition.room.id,
+              },
+            });
+          }
         }
       }
 
@@ -119,15 +152,17 @@ export async function POST(request: NextRequest) {
         data: {
           id: updatedGame.id,
           winnerId: winner,
+          winnerInfo: user, // Include full winner info
           winnerPoints: game.winnerPoints,
           status: "COMPLETED",
+          roomId: game.competition.room.id,
         },
       });
 
       // Also broadcast score update
       broadcastToRoom(game.competition.room.id, {
         type: "scores:updated",
-        data: {},
+        data: { roomId: game.competition.room.id },
       });
 
       return NextResponse.json({ game: updatedGame, winner });
@@ -166,6 +201,7 @@ export async function POST(request: NextRequest) {
         timerStartedAt: updatedGame.timerStartedAt,
         eliminatedPlayers: eliminatedPlayers,
         remainingPlayers: activePlayers.length,
+        roomId: game.competition.room.id,
       },
     });
 

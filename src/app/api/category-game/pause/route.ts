@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
         id: updatedGame.id,
         isPaused: true,
         pausedTimeElapsed: updatedGame.pausedTimeElapsed,
+        roomId: game.competition.room.id,
       },
     });
 

@@ -46,9 +46,23 @@ export async function POST(request: NextRequest) {
     // Get all users in the room
     const users = competition.room.memberships.map((m) => m.user);
 
-    // Shuffle the turn order (randomize)
-    const shuffled = [...users].sort(() => Math.random() - 0.5);
+    // Shuffle the turn order using Fisher-Yates algorithm for proper randomization
+    const shuffled = [...users];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
     const turnOrder = shuffled.map((u) => u.clerkId);
+    
+    console.log('Category game turn order (randomized):', turnOrder.map((id, idx) => {
+      const user = shuffled[idx];
+      return `${idx + 1}. ${user.username} (${id})`;
+    }).join(', '));
+
+    // Determine if trophy is a player trophy
+    const isPlayerTrophy = trophyId?.startsWith('player_');
+    const actualTrophyId = isPlayerTrophy ? null : trophyId;
+    const playerTrophyId = isPlayerTrophy ? trophyId : null;
 
     // Create the category game
     const categoryGame = await db.categoryGame.create({
@@ -64,7 +78,8 @@ export async function POST(request: NextRequest) {
         isPaused: false,
         timerStartedAt: new Date(),
         startedAt: new Date(),
-        trophyId: trophyId || null,
+        trophyId: actualTrophyId,
+        playerTrophyId: playerTrophyId,
       },
     });
 
@@ -81,6 +96,7 @@ export async function POST(request: NextRequest) {
         currentPlayerInfo: shuffled[0],
         timerStartedAt: categoryGame.timerStartedAt,
         status: categoryGame.status,
+        roomId: competition.room.id,
       },
     });
 

@@ -266,6 +266,7 @@ model CategoryGame {
   startedAt       DateTime?
   completedAt     DateTime?
   trophyId        String?          // Trophy for this game
+  playerTrophyId  String?          // Player/Artist trophy ID (format: player_<playerId>)
   
   competition     Competition      @relation(fields: [competitionId], references: [id])
   trophy          Trophy?          @relation(fields: [trophyId], references: [id])

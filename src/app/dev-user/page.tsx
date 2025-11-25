@@ -131,7 +131,7 @@ export default function DevUserPage() {
   const [showFestival, setShowFestival] = useState(false)
   const [showMyArtists, setShowMyArtists] = useState(false)
   const [showTrophyAnimation, setShowTrophyAnimation] = useState(false)
-  const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string } | null>(null)
+  const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string; points?: number } | null>(null)
   const [trophyWins, setTrophyWins] = useState<Array<{ id: string; trophy: { name: string; imageKey: string }; wonAt: string }>>([])
   const [trophiesAccordionOpen, setTrophiesAccordionOpen] = useState(true) // Default to open
   const [festivalPosterEnabled, setFestivalPosterEnabled] = useState(false)
@@ -341,7 +341,8 @@ export default function DevUserPage() {
               console.log('This user won the trophy!')
               setWonTrophy({
                 name: actualMessage.data.trophy.name,
-                imageKey: actualMessage.data.trophy.imageKey
+                imageKey: actualMessage.data.trophy.imageKey,
+                points: actualMessage.data.points
               })
               setShowTrophyAnimation(true)
             } else {
@@ -497,7 +498,8 @@ export default function DevUserPage() {
               console.log('Setting wonTrophy state...')
               setWonTrophy({
                 name: lastMessage.data.trophy.name,
-                imageKey: lastMessage.data.trophy.imageKey
+                imageKey: lastMessage.data.trophy.imageKey,
+                points: lastMessage.data.points
               })
               console.log('Setting showTrophyAnimation to true...')
               setShowTrophyAnimation(true)
@@ -976,6 +978,7 @@ export default function DevUserPage() {
             <TrophyAnimation
               trophyImageKey={wonTrophy.imageKey}
               trophyName={wonTrophy.name}
+              points={wonTrophy.points}
               onComplete={() => {
                 console.log('Trophy animation completed!')
                 setShowTrophyAnimation(false)

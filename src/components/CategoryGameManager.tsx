@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Play, Pause, SkipForward, Trophy } from 'lucide-react'
 import { getAvatarPath } from '@/lib/avatar-helpers'
-import TrophyPicker from './TrophyPicker'
+import TrophyModal from './TrophyModal'
 
 interface CategoryGameManagerProps {
   competitionId: string
@@ -37,6 +37,8 @@ export default function CategoryGameManager({
   const [timePerPlayer, setTimePerPlayer] = useState(30)
   const [winnerPoints, setWinnerPoints] = useState(5)
   const [selectedTrophyId, setSelectedTrophyId] = useState<string | null>(null)
+  const [showTrophyModal, setShowTrophyModal] = useState(false)
+  const [selectedPlayerInfo, setSelectedPlayerInfo] = useState<{ name: string, type: string } | null>(null)
   
   const [currentGame, setCurrentGame] = useState<CategoryGame | null>(null)
   const [timeRemaining, setTimeRemaining] = useState(0)
@@ -47,15 +49,15 @@ export default function CategoryGameManager({
       const response = await fetch(`/api/category-game/status?competitionId=${competitionId}`)
       const data = await response.json()
       
-      if (data.game) {
+      if (data.game && data.game.status === 'ACTIVE') {
+        // Only display ACTIVE games, never COMPLETED ones
         // Parse JSON fields
         const turnOrder = JSON.parse(data.game.turnOrder)
         const eliminatedPlayers = JSON.parse(data.game.eliminatedPlayers)
         
-        // Find current or winner player info
-        const playerIdToFind = data.game.status === 'COMPLETED' ? data.game.winnerId : data.game.currentPlayerId
+        // Find current player info
         const currentPlayerInfo = data.game.competition.room.memberships.find(
-          (m: any) => m.user.clerkId === playerIdToFind
+          (m: any) => m.user.clerkId === data.game.currentPlayerId
         )?.user
         
         setCurrentGame({
@@ -65,6 +67,7 @@ export default function CategoryGameManager({
           currentPlayerInfo,
         })
       } else {
+        // No active game or game is completed - clear display
         setCurrentGame(null)
       }
     } catch (error) {
@@ -85,8 +88,8 @@ export default function CategoryGameManager({
       const remaining = Math.max(0, currentGame.timePerPlayer - elapsed)
       setTimeRemaining(remaining)
 
-      // Auto-eliminate when time runs out
-      if (remaining === 0) {
+      // Auto-eliminate when time runs out (only if game is still active)
+      if (remaining === 0 && currentGame.status === 'ACTIVE') {
         handleNextPlayer()
       }
     }, 100)
@@ -98,17 +101,15 @@ export default function CategoryGameManager({
   useEffect(() => {
     if (!onWebSocketMessage) return
 
-    if (onWebSocketMessage.type === 'category-game:started' ||
+    if (onWebSocketMessage.type === 'category-game:completed') {
+      // Game completed - clear immediately, trophy animation will show
+      setCurrentGame(null)
+    } else if (onWebSocketMessage.type === 'category-game:started' ||
         onWebSocketMessage.type === 'category-game:next-player' ||
         onWebSocketMessage.type === 'category-game:resumed' ||
         onWebSocketMessage.type === 'category-game:paused') {
+      // Fetch game status (API will return null if completed)
       fetchGameStatus()
-    } else if (onWebSocketMessage.type === 'category-game:completed') {
-      fetchGameStatus()
-      // Show winner
-      setTimeout(() => {
-        setCurrentGame(null)
-      }, 5000)
     }
   }, [onWebSocketMessage])
 
@@ -143,6 +144,7 @@ export default function CategoryGameManager({
       setTimePerPlayer(30)
       setWinnerPoints(5)
       setSelectedTrophyId(null)
+      setSelectedPlayerInfo(null)
     } catch (error) {
       console.error('Failed to start game:', error)
       alert('Kunde inte starta spelet')
@@ -168,7 +170,7 @@ export default function CategoryGameManager({
   }
 
   const handleNextPlayer = async () => {
-    if (!currentGame) return
+    if (!currentGame || currentGame.status !== 'ACTIVE') return
 
     try {
       await fetch('/api/category-game/next-player', {
@@ -184,6 +186,31 @@ export default function CategoryGameManager({
     } catch (error) {
       console.error('Failed to move to next player:', error)
     }
+  }
+
+  const handleTrophySelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
+    // Create a player trophy ID in the format expected by the backend
+    const trophyId = `player_${playerId}`
+    setSelectedTrophyId(trophyId)
+    
+    // Fetch player details to display name
+    try {
+      const response = await fetch(`/api/players/all?type=${playerType}&category=AWARD`)
+      if (response.ok) {
+        const data = await response.json()
+        const player = data.players?.find((p: any) => p.id === playerId)
+        if (player) {
+          setSelectedPlayerInfo({
+            name: player.name,
+            type: playerType
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch player details:', error)
+    }
+    
+    setShowTrophyModal(false)
   }
 
   return (
@@ -264,11 +291,41 @@ export default function CategoryGameManager({
           </div>
 
           <div>
-            <TrophyPicker
-              selectedTrophyId={selectedTrophyId}
-              onSelect={setSelectedTrophyId}
-              label="Välj trofé (valfritt)"
-            />
+            <label className="block text-sm font-medium mb-2">
+              Trofé till vinnaren (valfritt)
+            </label>
+            <button
+              onClick={() => setShowTrophyModal(true)}
+              className="w-full px-4 py-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 font-medium"
+              style={{ 
+                backgroundColor: selectedTrophyId ? 'var(--input-bg)' : 'transparent',
+                borderColor: selectedTrophyId ? 'var(--primary)' : 'var(--border)',
+                color: selectedTrophyId ? 'var(--primary)' : 'var(--foreground)'
+              }}
+            >
+              {selectedTrophyId ? (
+                <>
+                  <Trophy size={20} />
+                  {selectedPlayerInfo ? `${selectedPlayerInfo.type === 'FOOTBALLER' ? '⚽' : '🎵'} ${selectedPlayerInfo.name}` : 'Trofé vald'}
+                </>
+              ) : (
+                <>
+                  <Trophy size={20} />
+                  Välj trofé
+                </>
+              )}
+            </button>
+            {selectedTrophyId && (
+              <button
+                onClick={() => {
+                  setSelectedTrophyId(null)
+                  setSelectedPlayerInfo(null)
+                }}
+                className="mt-2 text-sm opacity-70 hover:opacity-100 transition-opacity"
+              >
+                ❌ Ta bort trofé
+              </button>
+            )}
           </div>
 
           <button
@@ -361,41 +418,12 @@ export default function CategoryGameManager({
         </div>
       )}
 
-      {/* Winner Display */}
-      {currentGame && currentGame.status === 'COMPLETED' && currentGame.winnerId && currentGame.currentPlayerInfo && (
-        <div 
-          className="p-8 rounded-lg space-y-6 text-center border-4"
-          style={{ 
-            backgroundColor: 'var(--card-bg)', 
-            borderColor: 'var(--primary)'
-          }}
-        >
-          <div className="text-6xl">🏆</div>
-          <div className="text-3xl font-bold" style={{ color: 'var(--primary)' }}>
-            VINNARE: {currentGame.categoryName}
-          </div>
-          <div className="flex flex-col items-center gap-4">
-            <img
-              src={getAvatarPath(currentGame.currentPlayerInfo.avatarKey)}
-              alt={currentGame.currentPlayerInfo.username}
-              className="w-32 h-32 rounded-full border-4 shadow-xl"
-              style={{ borderColor: 'var(--primary)' }}
-            />
-            <div className="text-4xl font-bold">
-              {currentGame.currentPlayerInfo.username}
-            </div>
-            <div 
-              className="text-2xl font-semibold px-6 py-3 rounded-full"
-              style={{ backgroundColor: 'var(--primary)', color: 'white' }}
-            >
-              +{currentGame.winnerPoints} poäng
-            </div>
-          </div>
-          <div className="text-2xl">
-            🎊 Grattis! 🎊
-          </div>
-        </div>
-      )}
+      {/* Trophy Modal */}
+      <TrophyModal
+        isOpen={showTrophyModal}
+        onClose={() => setShowTrophyModal(false)}
+        onSelect={handleTrophySelect}
+      />
     </div>
   )
 }

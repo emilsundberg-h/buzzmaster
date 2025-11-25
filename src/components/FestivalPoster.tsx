@@ -145,7 +145,7 @@ export default function FestivalPoster({ isOpen, onClose, userId }: FestivalPost
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] font-light tracking-wider">TICKETS AT:</div>
-                  <div className="text-base font-bold">BUZZMASTER.SE</div>
+                  <div className="text-base font-bold">HEALTHYMOUNTAIN.ORG</div>
                 </div>
               </div>
             </div>

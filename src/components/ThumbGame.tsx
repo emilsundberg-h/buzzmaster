@@ -194,18 +194,18 @@ export default function ThumbGame({
         </div>
       )}
 
-      {/* Thumb Up Button - Top right (mirror of chat button) */}
+      {/* Thumb Up Button - Bottom left (mirror of chat button) */}
       {roundActive && !showLoserAnimation && !gameIsOver && (canStartGame || canRespond) && (
         <button
           onClick={canStartGame ? () => setConfirmStartOpen(true) : handleRespondToThumbGame}
-          className="fixed top-6 right-6 z-50 w-14 h-14 flex items-center justify-center rounded-full shadow-xl transition-all hover:scale-105"
+          className="fixed bottom-4 left-4 z-50 w-12 h-12 flex items-center justify-center rounded-full shadow-xl transition-all hover:scale-105"
           style={{
             backgroundColor: '#334155',
             color: 'white',
           }}
           title={canStartGame ? 'Start thumb game' : 'Put your thumb up!'}
         >
-          <ThumbsUp size={24} />
+          <ThumbsUp size={22} />
         </button>
       )}
 

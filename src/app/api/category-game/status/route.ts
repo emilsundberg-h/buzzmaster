@@ -34,9 +34,12 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ game });
     } else if (competitionId) {
-      // Get latest game for competition
+      // Get latest ACTIVE game for competition (don't show completed games)
       const game = await db.categoryGame.findFirst({
-        where: { competitionId },
+        where: { 
+          competitionId,
+          status: "ACTIVE" // Only fetch active games
+        },
         orderBy: { createdAt: "desc" },
         include: {
           competition: {
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      return NextResponse.json({ game });
+      return NextResponse.json({ game: game || null });
     }
 
     return NextResponse.json(

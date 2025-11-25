@@ -34,32 +34,21 @@ export default function CategoryGameDisplay({
   const [currentGame, setCurrentGame] = useState<CategoryGame | null>(null)
   const [timeRemaining, setTimeRemaining] = useState(0)
 
-  // Auto-dismiss winner message after 5 seconds
-  useEffect(() => {
-    if (currentGame?.status === 'COMPLETED') {
-      const timer = setTimeout(() => {
-        setCurrentGame(null)
-      }, 5000)
-      
-      return () => clearTimeout(timer)
-    }
-  }, [currentGame?.status])
-
   // Fetch current game status
   const fetchGameStatus = async () => {
     try {
       const response = await fetch(`/api/category-game/status?competitionId=${competitionId}`)
       const data = await response.json()
       
-      if (data.game) {
+      if (data.game && data.game.status === 'ACTIVE') {
+        // Only display ACTIVE games, never COMPLETED ones
         // Parse JSON fields
         const turnOrder = JSON.parse(data.game.turnOrder)
         const eliminatedPlayers = JSON.parse(data.game.eliminatedPlayers)
         
-        // Find current or winner player info
-        const playerIdToFind = data.game.status === 'COMPLETED' ? data.game.winnerId : data.game.currentPlayerId
+        // Find current player info
         const currentPlayerInfo = data.game.competition.room.memberships.find(
-          (m: any) => m.user.clerkId === playerIdToFind
+          (m: any) => m.user.clerkId === data.game.currentPlayerId
         )?.user
         
         setCurrentGame({
@@ -69,6 +58,7 @@ export default function CategoryGameDisplay({
           currentPlayerInfo,
         })
       } else {
+        // No active game or game is completed - clear display
         setCurrentGame(null)
       }
     } catch (error) {
@@ -78,7 +68,7 @@ export default function CategoryGameDisplay({
 
   // Update timer
   useEffect(() => {
-    if (!currentGame || currentGame.isPaused || !currentGame.timerStartedAt) {
+    if (!currentGame || currentGame.status !== 'ACTIVE' || currentGame.isPaused || !currentGame.timerStartedAt) {
       return
     }
 
@@ -97,11 +87,14 @@ export default function CategoryGameDisplay({
   useEffect(() => {
     if (!onWebSocketMessage) return
 
-    if (onWebSocketMessage.type === 'category-game:started' ||
+    if (onWebSocketMessage.type === 'category-game:completed') {
+      // Game completed - clear game immediately, trophy animation will show via trophy:won event
+      setCurrentGame(null)
+    } else if (onWebSocketMessage.type === 'category-game:started' ||
         onWebSocketMessage.type === 'category-game:next-player' ||
         onWebSocketMessage.type === 'category-game:resumed' ||
-        onWebSocketMessage.type === 'category-game:paused' ||
-        onWebSocketMessage.type === 'category-game:completed') {
+        onWebSocketMessage.type === 'category-game:paused') {
+      // Fetch game status (API will return null if completed)
       fetchGameStatus()
     }
   }, [onWebSocketMessage])
@@ -155,33 +148,6 @@ export default function CategoryGameDisplay({
             {currentGame.turnOrder.length - currentGame.eliminatedPlayers.length} players remaining
           </div>
         </div>
-
-        {/* Winner Display - Full Screen Popup */}
-        {currentGame.status === 'COMPLETED' && currentGame.winnerId && currentGame.currentPlayerInfo && (
-          <div className="text-center space-y-6">
-            <div className="text-9xl animate-bounce">🎉</div>
-            <div className="text-6xl font-bold animate-pulse" style={{ color: 'var(--primary)' }}>
-              {currentGame.winnerId === currentUserId ? '🏆 YOU WON! 🏆' : '👑 WINNER! 👑'}
-            </div>
-            <div className="flex flex-col items-center gap-4">
-              <img
-                src={getAvatarPath(currentGame.currentPlayerInfo.avatarKey)}
-                alt={currentGame.currentPlayerInfo.username}
-                className="w-40 h-40 rounded-full border-8 shadow-2xl animate-pulse"
-                style={{ borderColor: 'var(--primary)' }}
-              />
-              <div className="text-5xl font-bold">
-                {currentGame.currentPlayerInfo.username}
-              </div>
-              <div className="text-4xl font-semibold px-8 py-4 rounded-full" style={{ backgroundColor: 'var(--primary)', color: 'white' }}>
-                +{currentGame.winnerPoints} points
-              </div>
-            </div>
-            <div className="text-3xl mt-4">
-              🎊 Congratulations! 🎊
-            </div>
-          </div>
-        )}
 
         {/* Active Game */}
         {currentGame.status === 'ACTIVE' && (

@@ -5,12 +5,14 @@ import { useState, useEffect } from 'react'
 interface TrophyAnimationProps {
   trophyImageKey: string
   trophyName: string
+  points?: number
   onComplete?: () => void
 }
 
 export default function TrophyAnimation({ 
   trophyImageKey, 
   trophyName,
+  points,
   onComplete 
 }: TrophyAnimationProps) {
   const [stage, setStage] = useState<'swell' | 'crack' | 'reveal'>('swell')
@@ -113,17 +115,23 @@ export default function TrophyAnimation({
                   className="w-64 h-64 object-cover mx-auto rounded-full shadow-2xl"
                   style={{
                     boxShadow: '0 10px 50px rgba(255, 215, 0, 0.6)',
-                    animation: 'float 2s ease-in-out infinite'
+                    animation: 'float 2s ease-in-out infinite',
+                    filter: 'blur(8px)'
                   }}
                 />
               </div>
               
               <h3 className="text-2xl font-bold text-white">
-                {trophyName}
+                ???
               </h3>
               <p className="text-lg text-yellow-300 mt-2">
                 {trophyImageKey.includes('footballer') ? '⚽ Fotbollsspelare' : '🎵 Artist'}
               </p>
+              {points !== undefined && (
+                <p className="text-3xl font-bold text-green-400 mt-4">
+                  +{points} poäng
+                </p>
+              )}
             </div>
           </div>
         )}

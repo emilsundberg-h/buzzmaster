@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         isPaused: false,
         timerStartedAt: updatedGame.timerStartedAt,
         pausedTimeElapsed: updatedGame.pausedTimeElapsed,
+        roomId: game.competition.room.id,
       },
     });
 

@@ -133,3 +133,11 @@ body.theme-light .timer-bar {
 .duration-600 {
   transition-duration: 600ms;
 }
+
+/* Hide Next.js dev indicator */
+#__next-build-watcher,
+[data-nextjs-toast-wrapper],
+button[data-nextjs-data],
+div[data-nextjs-prerender-indicator] {
+  display: none !important;
+}
