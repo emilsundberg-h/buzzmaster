@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Play, Pause, SkipForward, Trophy } from 'lucide-react'
 import { getAvatarPath } from '@/lib/avatar-helpers'
 import TrophyModal from './TrophyModal'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface CategoryGameManagerProps {
   competitionId: string
@@ -32,6 +33,7 @@ export default function CategoryGameManager({
   roomId,
   onWebSocketMessage 
 }: CategoryGameManagerProps) {
+  const { theme } = useTheme()
   const [showSetup, setShowSetup] = useState(false)
   const [categoryName, setCategoryName] = useState('')
   const [timePerPlayer, setTimePerPlayer] = useState(30)
@@ -120,7 +122,7 @@ export default function CategoryGameManager({
 
   const handleStartGame = async () => {
     if (!categoryName || timePerPlayer < 1 || winnerPoints < 1) {
-      alert('Fyll i alla fält')
+      alert('Please fill in all fields')
       return
     }
 
@@ -147,7 +149,7 @@ export default function CategoryGameManager({
       setSelectedPlayerInfo(null)
     } catch (error) {
       console.error('Failed to start game:', error)
-      alert('Kunde inte starta spelet')
+      alert('Could not start the game')
     }
   }
 
@@ -217,13 +219,17 @@ export default function CategoryGameManager({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold">Kategori</h3>
+        <h3 className="text-xl font-bold">Category Game</h3>
         {!currentGame && (
           <button
             onClick={() => setShowSetup(!showSetup)}
-            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition"
+            className="px-4 py-2 rounded-md hover:opacity-80 transition-colors"
+            style={{
+              backgroundColor: 'var(--primary)',
+              color: theme === 'monochrome' ? '#000000' : '#ffffff',
+            }}
           >
-            {showSetup ? 'Stäng' : 'Starta Kategori'}
+            {showSetup ? 'Close' : 'Start Category Game'}
           </button>
         )}
       </div>
@@ -236,13 +242,13 @@ export default function CategoryGameManager({
         >
           <div>
             <label className="block text-sm font-medium mb-2">
-              Kategori namn
+              Category name
             </label>
             <input
               type="text"
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
-              placeholder="T.ex. Länder i Europa"
+              placeholder="E.g. Countries in Europe"
               className="w-full px-3 py-2 rounded-lg border"
               style={{ 
                 backgroundColor: 'var(--input-bg)', 
@@ -254,7 +260,7 @@ export default function CategoryGameManager({
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Tid per spelare (sekunder)
+              Time per player (seconds)
             </label>
             <input
               type="number"
@@ -273,7 +279,7 @@ export default function CategoryGameManager({
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Poäng till vinnaren
+              Points to the winner
             </label>
             <input
               type="number"
@@ -292,7 +298,7 @@ export default function CategoryGameManager({
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Trofé till vinnaren (valfritt)
+              Trophy for the winner (optional)
             </label>
             <button
               onClick={() => setShowTrophyModal(true)}
@@ -306,12 +312,12 @@ export default function CategoryGameManager({
               {selectedTrophyId ? (
                 <>
                   <Trophy size={20} />
-                  {selectedPlayerInfo ? `${selectedPlayerInfo.type === 'FOOTBALLER' ? '⚽' : '🎵'} ${selectedPlayerInfo.name}` : 'Trofé vald'}
+                  {selectedPlayerInfo ? `${selectedPlayerInfo.type === 'FOOTBALLER' ? '⚽' : '🎵'} ${selectedPlayerInfo.name}` : 'Trophy selected'}
                 </>
               ) : (
                 <>
                   <Trophy size={20} />
-                  Välj trofé
+                  Choose trophy
                 </>
               )}
             </button>
@@ -323,7 +329,7 @@ export default function CategoryGameManager({
                 }}
                 className="mt-2 text-sm opacity-70 hover:opacity-100 transition-opacity"
               >
-                ❌ Ta bort trofé
+                ❌ Remove trophy
               </button>
             )}
           </div>
@@ -332,7 +338,7 @@ export default function CategoryGameManager({
             onClick={handleStartGame}
             className="w-full py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-bold"
           >
-            Starta Spelet {selectedTrophyId ? '🏆' : ''}
+            Start Game {selectedTrophyId ? '🏆' : ''}
           </button>
         </div>
       )}
@@ -348,14 +354,14 @@ export default function CategoryGameManager({
               {currentGame.categoryName}
             </h4>
             <div className="text-sm opacity-70">
-              {currentGame.turnOrder.length - currentGame.eliminatedPlayers.length} spelare kvar
+              {currentGame.turnOrder.length - currentGame.eliminatedPlayers.length} players remaining
             </div>
           </div>
 
           {/* Current Player */}
           {currentGame.currentPlayerInfo && (
             <div className="text-center space-y-2">
-              <div className="text-lg font-semibold">Aktiv spelare:</div>
+              <div className="text-lg font-semibold">Active player:</div>
               <div className="flex items-center justify-center gap-3">
                 <img
                   src={getAvatarPath(currentGame.currentPlayerInfo.avatarKey)}
@@ -379,7 +385,7 @@ export default function CategoryGameManager({
             </div>
             {currentGame.isPaused && (
               <div className="text-yellow-500 font-semibold mt-2">
-                PAUSAD
+                PAUSED
               </div>
             )}
           </div>
@@ -397,12 +403,12 @@ export default function CategoryGameManager({
               {currentGame.isPaused ? (
                 <>
                   <Play size={20} />
-                  Fortsätt
+                  Resume
                 </>
               ) : (
                 <>
                   <Pause size={20} />
-                  Pausa
+                  Pause
                 </>
               )}
             </button>
@@ -412,7 +418,7 @@ export default function CategoryGameManager({
               className="flex-1 py-3 bg-red-500 text-white rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-red-600 transition"
             >
               <SkipForward size={20} />
-              Nästa Spelare
+              Next Player
             </button>
           </div>
         </div>

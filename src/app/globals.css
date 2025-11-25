@@ -90,6 +90,17 @@ body.theme-light .timer-bar {
   stroke: #3b82f6;
 }
 
+/* Cards that should only show border in monochrome theme */
+body.theme-monochrome .mono-border-card {
+  border: 1px solid var(--border);
+}
+
+body.theme-dark .mono-border-card,
+body.theme-pastel .mono-border-card,
+body.theme-light .mono-border-card {
+  border: none;
+}
+
 /* Thumb game animations */
 @keyframes fall {
   0% {

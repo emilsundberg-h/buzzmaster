@@ -246,17 +246,27 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
   // Play sequence function
   const playSequence = useCallback(async (seq: number[]) => {
     setIsPlaying(true)
-    await new Promise(resolve => setTimeout(resolve, 800))
+    
+    // Get timing based on difficulty
+    const difficulty = challenge.config?.difficulty || 'medium'
+    const timings = {
+      medium: { initial: 800, active: 600, pause: 300 },
+      hard: { initial: 600, active: 400, pause: 200 },
+      extreme: { initial: 400, active: 250, pause: 150 }
+    }
+    const timing = timings[difficulty as keyof typeof timings] || timings.medium
+    
+    await new Promise(resolve => setTimeout(resolve, timing.initial))
     
     for (let i = 0; i < seq.length; i++) {
       setActiveButton(seq[i])
-      await new Promise(resolve => setTimeout(resolve, 600))  // Längre aktiv tid
+      await new Promise(resolve => setTimeout(resolve, timing.active))
       setActiveButton(null)
-      await new Promise(resolve => setTimeout(resolve, 300))  // Längre paus mellan
+      await new Promise(resolve => setTimeout(resolve, timing.pause))
     }
     
     setIsPlaying(false)
-  }, [])
+  }, [challenge.config])
 
   // Simon game logic - start first sequence after game start time
   useEffect(() => {
@@ -422,7 +432,10 @@ export default function SimonChallenge({ currentUserId, currentRoomId, roundActi
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}>
           <div className="w-full max-w-md rounded-xl shadow-xl p-6" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)', border: '2px solid var(--primary)' }}>
             <div className="text-3xl font-bold text-center mb-2">🎵 Simon Says!</div>
-            <div className="text-lg text-center mb-4 opacity-80">Place your bet</div>
+            <div className="text-lg text-center mb-1 opacity-80">Place your bet</div>
+            <div className="text-sm text-center mb-4 opacity-60 capitalize">
+              {challenge.config?.difficulty || 'medium'} difficulty
+            </div>
             <div className="text-center mb-4">
               <div className="text-sm opacity-70 mb-1">Current score</div>
               <div className="text-4xl font-bold" style={{ color: 'var(--primary)' }}>{currentScore}</div>

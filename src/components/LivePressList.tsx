@@ -34,16 +34,19 @@ export default function LivePressList({ presses }: LivePressListProps) {
           {sortedPresses.map((press, index) => (
             <div 
               key={press.id} 
-              className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all ${
-                index === 0 
-                  ? 'border-yellow-400 bg-yellow-50' 
-                  : 'border-gray-200 bg-gray-50'
-              }`}
+              className="flex items-center justify-between p-4 rounded-lg border-2 transition-all"
+              style={{
+                borderColor: index === 0 ? 'var(--primary)' : 'var(--border)',
+                backgroundColor: 'var(--input-bg)'
+              }}
             >
               <div className="flex items-center space-x-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                  index === 0 ? 'bg-yellow-500' : 'bg-gray-500'
-                }`}>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
+                  style={{
+                    backgroundColor: index === 0 ? 'var(--primary)' : 'var(--border)'
+                  }}
+                >
                   {index + 1}
                 </div>
                 
@@ -55,14 +58,20 @@ export default function LivePressList({ presses }: LivePressListProps) {
                 
                 <div>
                   <p className="font-semibold">{press.user.username}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm opacity-70">
                     {new Date(press.pressedAt).toLocaleTimeString()}
                   </p>
                 </div>
               </div>
               
               {index === 0 && (
-                <div className="px-3 py-1 bg-yellow-500 text-white rounded-full text-sm font-bold">
+                <div
+                  className="px-3 py-1 rounded-full text-sm font-bold"
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    color: 'white'
+                  }}
+                >
                   WINNER!
                 </div>
               )}

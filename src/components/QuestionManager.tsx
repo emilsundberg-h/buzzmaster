@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Trophy } from 'lucide-react'
 import TrophyModal from './TrophyModal'
 import { getAvatarPath } from '@/lib/avatar-helpers'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface Question {
   id: string
@@ -42,6 +43,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, autoOpe
   const [questions, setQuestions] = useState<Question[]>([])
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [loading, setLoading] = useState(false)
+  const { theme } = useTheme()
   
   // Form state
   const [questionText, setQuestionText] = useState('')
@@ -345,12 +347,16 @@ export default function QuestionManager({ competitionId, refreshTrigger, autoOpe
   }
 
   return (
-    <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
+    <div className="p-6 rounded-lg shadow mono-border-card" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Question Management</h2>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="px-4 py-2 rounded-md font-medium hover:opacity-80 transition-colors"
+          style={{
+            backgroundColor: 'var(--primary)',
+            color: theme === 'monochrome' ? '#000000' : 'var(--foreground)',
+          }}
         >
           {showCreateForm ? 'Close' : 'Create New Question'}
         </button>
@@ -548,9 +554,14 @@ export default function QuestionManager({ competitionId, refreshTrigger, autoOpe
           </div>
           <button
             onClick={() => setShowTrophyModal(true)}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold"
+            className="px-4 py-2 rounded-md hover:opacity-80 transition-colors border"
+            style={{
+              backgroundColor: 'var(--card-bg)',
+              color: 'var(--primary)',
+              borderColor: 'var(--primary)',
+            }}
           >
-            {sendTrophyId ? '🏆 Change Trophy' : '🏆 Select Trophy'}
+            {sendTrophyId ? 'Change Trophy' : 'Select Trophy'}
           </button>
         </div>
         {sendTrophyId && (
@@ -582,7 +593,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, autoOpe
                 className="w-full px-4 py-3 flex items-center justify-between hover:opacity-80 transition-opacity"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-md font-semibold">Pending Questions</span>
+                  <span className="text-sm font-medium">Pending Questions</span>
                   <span 
                     className="px-2 py-1 rounded-full text-xs font-bold bg-gray-500 text-white"
                   >
@@ -659,7 +670,7 @@ export default function QuestionManager({ competitionId, refreshTrigger, autoOpe
                 className="w-full px-4 py-3 flex items-center justify-between hover:opacity-80 transition-opacity"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-md font-semibold">Submitted Questions</span>
+                  <span className="text-sm font-medium">Submitted Questions</span>
                   <span 
                     className="px-2 py-1 rounded-full text-xs font-bold bg-gray-500 text-white"
                   >
@@ -728,13 +739,18 @@ export default function QuestionManager({ competitionId, refreshTrigger, autoOpe
                   )}
                   
                   {question.status === 'ACTIVE' && (
-                    <>
-                      <button
-                        onClick={() => setSelectedQuestion(question)}
-                        className="px-3 py-1 bg-purple-500 text-white text-sm rounded hover:bg-purple-600"
-                      >
-                        View Answers ({question.answers?.length || 0})
-                      </button>
+                  <>
+                    <button
+                      onClick={() => setSelectedQuestion(question)}
+                      className="px-3 py-1 text-sm rounded border-2 hover:opacity-80 transition-colors"
+                      style={{
+                        backgroundColor: 'var(--primary)',
+                        color: 'var(--foreground)',
+                        borderColor: 'var(--primary)',
+                      }}
+                    >
+                      View Answers ({question.answers?.length || 0})
+                    </button>
                       {question.type === 'MULTIPLE_CHOICE' && (
                         <button
                           onClick={() => handleEvaluateQuestion(question.id)}

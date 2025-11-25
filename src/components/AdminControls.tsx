@@ -4,6 +4,7 @@ import Image from "next/image"
 import { getAvatarPath } from "@/lib/avatar-helpers"
 import { useState, useEffect } from 'react'
 import TrophyModal from './TrophyModal'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface AdminControlsProps {
   onStartRound: (timerEnabled: boolean, timerDuration: number) => void
@@ -12,8 +13,6 @@ interface AdminControlsProps {
   onUpdateScore: (userId: string, change: number) => void
   onDeleteUser: (userId: string) => void
   competitionId: string
-  festivalPosterEnabled: boolean
-  onToggleFestivalPoster: (enabled: boolean) => void
   users: Array<{
     id: string
     clerkId?: string
@@ -46,13 +45,13 @@ export default function AdminControls({
   onUpdateScore,
   onDeleteUser,
   competitionId,
-  festivalPosterEnabled,
-  onToggleFestivalPoster,
   users,
   currentRound,
   recentPresses
 }: AdminControlsProps) {
+  const { theme } = useTheme()
   const [scoreChanges, setScoreChanges] = useState<Record<string, number>>({})
+  const [localUsers, setLocalUsers] = useState(users)
   const [timerDisabled, setTimerDisabled] = useState(false) // Default timer is ON
   const [timerDuration, setTimerDuration] = useState(10) // Default 10 seconds
   const [buttonsTrophyId, setButtonsTrophyId] = useState<string | null>(null)
@@ -71,6 +70,12 @@ export default function AdminControls({
     }
   }, [currentRound?.buttonsEnabled, currentRound?.winnerUserId, currentRound?.endedAt])
 
+  // Keep localUsers in sync when user list size changes (add/remove users),
+  // but don't overwrite optimistic score updates on every prop change
+  useEffect(() => {
+    setLocalUsers(users)
+  }, [users.length])
+
   const handleScoreChange = (userId: string, change: number) => {
     setScoreChanges(prev => ({
       ...prev,
@@ -82,6 +87,10 @@ export default function AdminControls({
     const change = scoreChanges[userId] || 0
     if (change !== 0) {
       onUpdateScore(userId, change)
+      // Optimistically update local score so UI reflects change immediately
+      setLocalUsers(prev => prev.map(u =>
+        u.id === userId ? { ...u, score: u.score + change } : u
+      ))
       setScoreChanges(prev => ({
         ...prev,
         [userId]: 0
@@ -111,7 +120,6 @@ export default function AdminControls({
 
   const handleGivePlayerSelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
     if (!selectedUserId) {
-      alert('Please select a user first')
       return
     }
 
@@ -128,16 +136,13 @@ export default function AdminControls({
       const data = await response.json()
 
       if (!response.ok) {
-        alert(data.error || 'Failed to give player')
         return
       }
 
-      alert(data.message || `${playerType === 'FOOTBALLER' ? 'Footballer' : 'Artist'} given successfully!`)
       setSelectedUserId('')
       setIsTrophyGiveModalOpen(false)
     } catch (error) {
       console.error('Give player failed:', error)
-      alert('Failed to give player')
     }
   }
 
@@ -151,8 +156,103 @@ export default function AdminControls({
 
   return (
     <div className="space-y-8">
+      {/* Manual Score Adjustment */}
+      <div
+        className="p-6 rounded-lg shadow mono-border-card"
+        style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
+      >
+        <h2 className="text-xl font-bold mb-4">Manual Score Adjustment</h2>
+        
+        <div className="space-y-4">
+          {localUsers.map(user => (
+            <div key={user.id} className="flex items-center justify-between p-4 border rounded" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center space-x-4">
+                <img
+                  src={getAvatarPath(user.avatarKey)}
+                  alt={user.username}
+                  className="w-8 h-8 rounded-full"
+                />
+                <span className="font-medium">{user.username}</span>
+                <span className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{user.score}</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleScoreChange(user.id, -1)}
+                  className="px-3 py-1 rounded border-2 hover:opacity-80"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                    backgroundColor: 'transparent',
+                  }}
+                >
+                  -1
+                </button>
+                
+                <span className="px-3 py-1 rounded min-w-[2rem] text-center" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}>
+                  {scoreChanges[user.id] || 0}
+                </span>
+                
+                <button
+                  onClick={() => handleScoreChange(user.id, 1)}
+                  className="px-3 py-1 rounded border-2 hover:opacity-80"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                    backgroundColor: 'transparent',
+                  }}
+                >
+                  +1
+                </button>
+                
+                <button
+                  onClick={() => applyScoreChange(user.id)}
+                  disabled={!scoreChanges[user.id]}
+                  className="px-3 py-1 rounded border-2 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                    backgroundColor: 'transparent',
+                  }}
+                >
+                  Apply
+                </button>
+
+                <button
+                  onClick={() => handleGiveTrophyClick(user.clerkId || user.id)}
+                  className="px-3 py-1 rounded border-2 font-bold hover:opacity-80"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                    backgroundColor: 'transparent',
+                  }}
+                  title="Give Trophy"
+                >
+                  🏆
+                </button>
+
+                <button
+                  onClick={() => onDeleteUser(user.id)}
+                  className="px-3 py-1 rounded border-2 hover:opacity-80"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                    backgroundColor: 'transparent',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Round Controls */}
-      <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
+      <div
+        className="p-6 rounded-lg shadow mono-border-card"
+        style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
+      >
         <h2 className="text-xl font-bold mb-4">Round Controls</h2>
         
         <div className="space-y-4">
@@ -184,75 +284,16 @@ export default function AdminControls({
             )}
           </div>
 
-
-          {/* Trophy Button - Before Enabling Buttons */}
-          {isRoundActive && !currentRound?.buttonsEnabled && (
-            <div className="p-4 rounded border-2" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setIsTrophyModalOpen(true)}
-                  className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 border-2 transition-colors"
-                  style={{
-                    borderColor: 'var(--border)',
-                    color: 'var(--foreground)',
-                    backgroundColor: 'transparent'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--primary)'
-                    e.currentTarget.style.backgroundColor = 'var(--input-bg)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border)'
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                  }}
-                >
-                  🏆 Trophys
-                </button>
-                
-                {selectedPlayerInfo && (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg border-2" style={{ borderColor: 'var(--primary)', backgroundColor: 'var(--input-bg)' }}>
-                    <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                      {selectedPlayerInfo.type === 'FOOTBALLER' ? '⚽' : '🎵'} {selectedPlayerInfo.name}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setButtonsTrophyId(null)
-                        setSelectedPlayerInfo(null)
-                      }}
-                      className="font-bold hover:opacity-70"
-                      style={{ color: 'var(--primary)' }}
-                      title="Rensa trofé"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-                
-                {!selectedPlayerInfo && (
-                  <span className="text-sm opacity-70" style={{ color: 'var(--foreground)' }}>
-                    Välj en trofé innan du enablerar knapparna (valfritt)
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-          
-          <div className="flex flex-wrap gap-4">
-            {!isRoundActive ? (
+          <div className="flex flex-wrap gap-4 items-center">
+            {!isRoundActive && (
               <button
                 onClick={() => {
                   onStartRound(!timerDisabled, timerDuration) // No trophy on start, only on button enable
                 }}
-                className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium"
+                className="px-6 py-3 rounded-md text-white font-medium hover:opacity-80 transition-colors"
+                style={{ backgroundColor: 'var(--primary)' }}
               >
                 Start Competition
-              </button>
-            ) : (
-              <button
-                onClick={onEndRound}
-                className="px-6 py-3 bg-red-500 text-white rounded hover:bg-red-600 font-medium"
-              >
-                End Competition
               </button>
             )}
             
@@ -270,143 +311,73 @@ export default function AdminControls({
                 }
               }}
               disabled={!isRoundActive}
-              className={`px-6 py-3 text-white rounded font-medium disabled:bg-gray-300 disabled:cursor-not-allowed ${
-                currentRound?.buttonsEnabled 
-                  ? 'bg-yellow-500 hover:bg-yellow-600' 
-                  : 'bg-blue-500 hover:bg-blue-600'
-              }`}
+              className="px-6 py-3 rounded font-medium disabled:opacity-60 disabled:cursor-not-allowed border-2 transition-colors"
+              style={{
+                borderColor: 'var(--primary)',
+                backgroundColor: currentRound?.buttonsEnabled ? 'transparent' : 'var(--primary)',
+                color: currentRound?.buttonsEnabled
+                  ? 'var(--primary)'
+                  : theme === 'monochrome'
+                    ? '#000000'
+                    : '#ffffff',
+              }}
             >
-              {currentRound?.buttonsEnabled ? 'Disable Buttons' : 'Enable Buttons'} {buttonsTrophyId && !currentRound?.buttonsEnabled ? '🏆' : ''}
+              {currentRound?.buttonsEnabled ? 'Disable Buttons' : 'Enable Buttons'} {buttonsTrophyId && !currentRound?.buttonsEnabled ? '' : ''}
             </button>
+
+            {isRoundActive && !currentRound?.buttonsEnabled && (
+              <button
+                onClick={() => setIsTrophyModalOpen(true)}
+                className="px-6 py-3 rounded font-medium border-2"
+                style={{
+                  borderColor: selectedPlayerInfo ? 'var(--primary)' : 'var(--border)',
+                  color: 'var(--foreground)',
+                  backgroundColor: selectedPlayerInfo ? 'var(--input-bg)' : 'transparent'
+                }}
+                title={selectedPlayerInfo ? `${selectedPlayerInfo.type === 'FOOTBALLER' ? '⚽' : '🎵'} ${selectedPlayerInfo.name}` : 'Välj en trofé innan du enablerar knapparna (valfritt)'}
+              >
+               Trophys
+              </button>
+            )}
           </div>
 
-          {currentRound && (
-            <div className="mt-4 p-4 rounded" style={{ backgroundColor: 'var(--input-bg)' }}>
-              <p><strong>Status:</strong> {isRoundActive ? 'Active' : 'Inactive'}</p>
-              <p><strong>Buttons:</strong> {currentRound.buttonsEnabled ? 'Enabled' : 'Disabled'}</p>
-              {currentRound.trophyId && (
-                <p><strong>Trofé:</strong> 🏆 Aktiv</p>
-              )}
+        </div>
+      </div>
+
+      {/**
+       * Recent Presses section temporarily hidden from UI.
+       * Keeping code for potential future debugging/visualizations.
+       */}
+      {false && (
+        <div
+          className="p-6 rounded-lg shadow mono-border-card"
+          style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
+        >
+          <h2 className="text-xl font-bold mb-4">Recent Presses</h2>
+          
+          {recentPresses.length === 0 ? (
+            <p className="opacity-70">No recent presses</p>
+          ) : (
+            <div className="space-y-2">
+              {recentPresses.map(press => (
+                <div key={press.id} className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--input-bg)' }}>
+                  <div className="flex items-center space-x-3">
+                    <img
+                      src={getAvatarPath(press.user.avatarKey)}
+                      alt={press.user.username}
+                      className="w-6 h-6 rounded-full"
+                    />
+                    <span className="font-medium">{press.user.username}</span>
+                  </div>
+                  <span className="text-sm opacity-70">
+                    {new Date(press.pressedAt).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
-
-          {/* Festival Poster Toggle */}
-          <div className="mt-4 p-4 rounded border-2" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🎵</span>
-                <span className="font-medium">Festival Poster</span>
-              </div>
-              <button
-                onClick={() => onToggleFestivalPoster(!festivalPosterEnabled)}
-                className={`px-6 py-2 rounded-lg font-medium border-2 transition-colors ${
-                  festivalPosterEnabled 
-                    ? 'bg-green-500 text-white border-green-600 hover:bg-green-600' 
-                    : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
-                }`}
-              >
-                {festivalPosterEnabled ? '✓ Aktiverad' : 'Aktivera'}
-              </button>
-            </div>
-            <p className="text-sm mt-2 opacity-70">
-              {festivalPosterEnabled 
-                ? 'Spelare kan nu se festivalposter under Spelat' 
-                : 'Aktivera för att visa festivalposter för spelare'}
-            </p>
-          </div>
         </div>
-      </div>
-
-      {/* Manual Score Adjustment */}
-      <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
-        <h2 className="text-xl font-bold mb-4">Manual Score Adjustment</h2>
-        
-        <div className="space-y-4">
-          {users.map(user => (
-            <div key={user.id} className="flex items-center justify-between p-4 border rounded" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-center space-x-4">
-                <img
-                  src={getAvatarPath(user.avatarKey)}
-                  alt={user.username}
-                  className="w-8 h-8 rounded-full"
-                />
-                <span className="font-medium">{user.username}</span>
-                <span className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{user.score}</span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleScoreChange(user.id, -1)}
-                  className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  -1
-                </button>
-                
-                <span className="px-3 py-1 rounded min-w-[2rem] text-center" style={{ backgroundColor: 'var(--input-bg)', color: 'var(--foreground)' }}>
-                  {scoreChanges[user.id] || 0}
-                </span>
-                
-                <button
-                  onClick={() => handleScoreChange(user.id, 1)}
-                  className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                >
-                  +1
-                </button>
-                
-                <button
-                  onClick={() => applyScoreChange(user.id)}
-                  disabled={!scoreChanges[user.id]}
-                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Apply
-                </button>
-
-                <button
-                  onClick={() => handleGiveTrophyClick(user.clerkId || user.id)}
-                  className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-bold"
-                  title="Give Trophy"
-                >
-                  🏆
-                </button>
-
-                <button
-                  onClick={() => onDeleteUser(user.id)}
-                  className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Recent Presses */}
-      <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}>
-        <h2 className="text-xl font-bold mb-4">Recent Presses</h2>
-        
-        {recentPresses.length === 0 ? (
-          <p className="opacity-70">No recent presses</p>
-        ) : (
-          <div className="space-y-2">
-            {recentPresses.map(press => (
-              <div key={press.id} className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--input-bg)' }}>
-                <div className="flex items-center space-x-3">
-                  <img
-                    src={getAvatarPath(press.user.avatarKey)}
-                    alt={press.user.username}
-                    className="w-6 h-6 rounded-full"
-                  />
-                  <span className="font-medium">{press.user.username}</span>
-                </div>
-                <span className="text-sm opacity-70">
-                  {new Date(press.pressedAt).toLocaleTimeString()}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Trophy Modal for Button Enable */}
       <TrophyModal

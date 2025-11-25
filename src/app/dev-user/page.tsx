@@ -78,7 +78,7 @@ export default function DevUserPage() {
   } | null>(null)
   
   // Theme context
-  const { setTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   
   // Debug roundStatus changes
   useEffect(() => {
@@ -993,61 +993,93 @@ export default function DevUserPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 text-sm rounded transition-colors"
-              style={{ 
-                border: '2px solid var(--border)', 
-                color: 'var(--foreground)',
-                backgroundColor: 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--muted)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
-            >
-              Logout
-            </button>
-          </div>
-          <h1 className="text-3xl font-bold mb-2">
-            Welcome, {profile.username}!{!isClerkMode && ' (DEV MODE)'}
-          </h1>
-          <p className="text-xl text-gray-600">
-            Your Score: <span className="font-bold text-blue-600">{profile.score}</span>
-          </p>
-          {currentRoom && (
-            <div className="mt-4">
-              <p className="text-lg text-gray-600">
-                Room: <span className="font-bold text-green-600">{currentRoom.name}</span>
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <p className="text-sm text-gray-500">
+                {isClerkMode ? 'Signed in with Clerk' : 'DEV USER MODE'}
               </p>
-              <div className="flex gap-2 mt-2 flex-wrap">
+              <p className="text-xs text-gray-400">
+                User ID: {userId}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {currentRoom && (
                 <button
                   onClick={handleLeaveRoom}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  className="px-4 py-2 rounded-md text-sm font-medium border-2 hover:opacity-80 transition-colors"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)',
+                    backgroundColor: 'transparent',
+                  }}
                 >
                   Leave Room
                 </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-md text-sm font-medium border-2 hover:opacity-80 transition-colors"
+                style={{ 
+                  borderColor: 'var(--border)', 
+                  color: 'var(--foreground)',
+                  backgroundColor: 'transparent'
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
+            Welcome, {profile.username}!{!isClerkMode && ' (DEV MODE)'}
+          </h1>
+          <p className="text-xl opacity-80" style={{ color: 'var(--foreground)' }}>
+            Your Score:{' '}
+            <span className="font-bold" style={{ color: 'var(--primary)' }}>
+              {profile.score}
+            </span>
+          </p>
+          {currentRoom && (
+            <div className="mt-4">
+              <p className="text-lg opacity-80" style={{ color: 'var(--foreground)' }}>
+                Room:{' '}
+                <span className="font-bold" style={{ color: 'var(--primary)' }}>
+                  {currentRoom.name}
+                </span>
+              </p>
+              <div className="flex gap-2 mt-2 flex-wrap justify-center">
                 <button
                   onClick={() => setShowDreamEleven(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold"
+                  className="px-4 py-2 rounded-md font-medium border-2 hover:opacity-80 transition-colors"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    borderColor: 'var(--primary)',
+                    color: 'var(--primary)',
+                  }}
                 >
-                  ⚽ My Dream Eleven
+                  My all-time XI
                 </button>
                 <button
                   onClick={() => setShowMyArtists(true)}
-                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 font-semibold"
+                  className="px-4 py-2 rounded-md font-medium border-2 hover:opacity-80 transition-colors"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    borderColor: 'var(--primary)',
+                    color: 'var(--primary)',
+                  }}
                 >
-                  🎸 My Artists
+                  Secret Artists
                 </button>
                 {festivalPosterEnabled && (
                   <button
                     onClick={() => setShowFestival(true)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-semibold"
+                    className="px-4 py-2 rounded-md font-medium border-2 hover:opacity-80 transition-colors"
+                    style={{
+                      backgroundColor: 'var(--card-bg)',
+                      borderColor: 'var(--primary)',
+                      color: 'var(--primary)',
+                    }}
                   >
-                    🎵 Festival Poster
+                    Secret Festival
                   </button>
                 )}
               </div>
@@ -1058,18 +1090,28 @@ export default function DevUserPage() {
         {/* Status */}
         <div className="text-center mb-8">
           {roundStatus && roundStatus.startedAt && !roundStatus.endedAt ? (
-            <div className="inline-block p-4 bg-white rounded-lg shadow">
+            <div
+              className="inline-block p-4 rounded-lg shadow mono-border-card"
+              style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
+            >
               <p className="text-lg">
-                Round Status: <span className="font-bold text-green-600">Active</span>
+                Round Status:{' '}
+                <span className="font-bold" style={{ color: 'var(--primary)' }}>
+                  Active
+                </span>
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm opacity-80">
                 Buttons: {roundStatus.buttonsEnabled ? 'Enabled' : 'Disabled'}
               </p>
             </div>
           ) : (
-            <div className="inline-block p-4 bg-white rounded-lg shadow">
+            <div
+              className="inline-block p-4 rounded-lg shadow mono-border-card"
+              style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
+            >
               <p className="text-lg">
-                Round Status: <span className="font-bold text-gray-600">Inactive</span>
+                Round Status:{' '}
+                <span className="font-bold opacity-80">Inactive</span>
               </p>
             </div>
           )}

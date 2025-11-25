@@ -108,7 +108,8 @@ export default function DevAdminPage() {
   const [savedTimerDuration, setSavedTimerDuration] = useState(10)
   const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0)
   const [autoOpenQuestionId, setAutoOpenQuestionId] = useState<string | null>(null)
-  const [showUsers, setShowUsers] = useState(true)
+  // Users accordion (default closed)
+  const [showUsers, setShowUsers] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [pendingDeleteUserId, setPendingDeleteUserId] = useState<string | null>(null)
   // Challenge config
@@ -123,6 +124,9 @@ export default function DevAdminPage() {
   // Simon Game config
   const [simonOpen, setSimonOpen] = useState(false)
   const [simonChillMode, setSimonChillMode] = useState(false)
+  const [simonDifficulty, setSimonDifficulty] = useState<'medium' | 'hard' | 'extreme'>('medium')
+  // Room Management accordion
+  const [roomManagementOpen, setRoomManagementOpen] = useState(false)
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -915,19 +919,7 @@ export default function DevAdminPage() {
           <p className="text-lg opacity-80">
             Welcome, {isClerkMode && clerkUser ? (clerkUser.firstName || clerkUser.emailAddresses[0].emailAddress) : 'Admin User'}
           </p>
-          <div className="mt-4 space-x-2">
-            <span className={`px-3 py-1 rounded text-sm ${
-              isConnected ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-            }`}>
-              WebSocket: {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-            <button
-              onClick={handleClearSSEConnections}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-            >
-              Clear WebSocket Connections
-            </button>
-          </div>
+          {/* WebSocket status and clear button hidden in UI; functionality kept for debugging via code only */}
 
         {/* Delete User Confirm Modal */}
         <ConfirmModal
@@ -948,58 +940,80 @@ export default function DevAdminPage() {
         </div>
 
         {/* Users Management */}
-        <div className="p-6 rounded-lg shadow mb-8" style={{ backgroundColor: 'var(--card-bg)' }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Users</h2>
+        <div className="mb-8">
+          <div
+            className="rounded-lg shadow overflow-hidden mono-border-card"
+            style={{ backgroundColor: 'var(--card-bg)' }}
+          >
             <button
               onClick={() => setShowUsers(s => !s)}
-              className="px-3 py-1 rounded-md text-sm"
-              style={{ border: `1px solid var(--border)`, backgroundColor: 'var(--input-bg)' }}
+              className="w-full px-6 py-4 flex items-center justify-between hover:opacity-80 transition-opacity"
             >
-              {showUsers ? 'Hide' : 'Show'} ({users.length})
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">Users</h2>
+                <span className="text-sm opacity-70">({users.length})</span>
+              </div>
+              <span className="text-2xl">{showUsers ? '⌄' : '›'}</span>
             </button>
-          </div>
-          <p className="text-sm opacity-80 mb-4">Manage users before entering a room. Deleting a user frees up their avatar.</p>
-          {showUsers && (
-            <>
-              {users.length === 0 ? (
-                <div className="text-sm opacity-70">No users found.</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {users.map(u => (
-                    <div key={u.id} className="p-4 border rounded-lg flex items-center justify-between gap-3"
-                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--input-bg)' }}>
-                      <div className="flex items-center gap-3">
-                        <div className="relative h-10 w-10 rounded-full overflow-hidden">
-                          <Image src={getAvatarPath(u.avatarKey)} alt={u.username} fill className="object-cover" />
-                        </div>
-                        <div>
-                          <div className="font-semibold">{u.username}</div>
-                          <div className="text-xs opacity-70">Score: {u.score}</div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => { setPendingDeleteUserId(u.id); setConfirmDeleteOpen(true); }}
-                        className="px-3 py-2 rounded-md text-white text-sm"
-                        style={{ backgroundColor: '#ef4444' }}
-                        title="Delete user"
+
+            {showUsers && (
+              <div className="px-6 pb-6">
+                <p className="text-sm opacity-80 mb-4">Manage users before entering a room. Deleting a user frees up their avatar.</p>
+
+                {users.length === 0 ? (
+                  <div className="text-sm opacity-70">No users found.</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {users.map(u => (
+                      <div
+                        key={u.id}
+                        className="p-4 border rounded-lg flex items-center justify-between gap-3"
+                        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--input-bg)' }}
                       >
-                        Delete
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-10 w-10 rounded-full overflow-hidden">
+                            <Image src={getAvatarPath(u.avatarKey)} alt={u.username} fill className="object-cover" />
+                          </div>
+                          <div>
+                            <div className="font-semibold">{u.username}</div>
+                            <div className="text-xs opacity-70">Score: {u.score}</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => { setPendingDeleteUserId(u.id); setConfirmDeleteOpen(true); }}
+                          className="px-3 py-2 rounded-md text-white text-sm"
+                          style={{ backgroundColor: '#ef4444' }}
+                          title="Delete user"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
 
         {/* Room Management */}
-        <div className="p-6 rounded-lg shadow mb-8" style={{ backgroundColor: 'var(--card-bg)' }}>
-          <h2 className="text-xl font-bold mb-4">Room Management</h2>
-          
-          <div className="flex flex-wrap gap-4 mb-4">
+        <div className="mb-8">
+          <div 
+            className="rounded-lg shadow overflow-hidden mono-border-card"
+            style={{ backgroundColor: 'var(--card-bg)' }}
+          >
+            <button
+              onClick={() => setRoomManagementOpen(!roomManagementOpen)}
+              className="w-full px-6 py-4 flex items-center justify-between hover:opacity-80 transition-opacity"
+            >
+              <h2 className="text-xl font-bold">Room Management</h2>
+              <span className="text-2xl">{roomManagementOpen ? '⌄' : '›'}</span>
+            </button>
+            
+            {roomManagementOpen && (
+              <div className="px-6 pb-6">
+                <div className="flex flex-wrap gap-4 mb-4">
             <input
               type="text"
               value={newRoomName}
@@ -1051,7 +1065,22 @@ export default function DevAdminPage() {
                     
                     {currentRoom?.id === room.id && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
-                        <h5 className="font-semibold text-sm mb-2">Room Members:</h5>
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-semibold text-sm">Room Members:</h5>
+                          {currentRound && currentRound.startedAt && !currentRound.endedAt && (
+                            <button
+                              onClick={handleEndRound}
+                              className="px-3 py-1 rounded-md text-xs font-medium border hover:opacity-80 transition-colors"
+                              style={{
+                                backgroundColor: 'var(--card-bg)',
+                                color: 'var(--primary)',
+                                borderColor: 'var(--primary)',
+                              }}
+                            >
+                              End Competition
+                            </button>
+                          )}
+                        </div>
                         {room.memberships && room.memberships.length > 0 ? (
                           <div className="space-y-1">
                             {room.memberships.map((membership: Membership) => (
@@ -1084,6 +1113,18 @@ export default function DevAdminPage() {
               </div>
             </div>
           )}
+                </div>
+              )}
+          </div>
+        </div>
+
+        {/* Settings (Theme & Festival) */}
+        <div className="mb-8">
+          <ThemeSelector
+            onThemeChange={handleThemeChange}
+            festivalEnabled={festivalPosterEnabled}
+            onToggleFestival={handleToggleFestivalPoster}
+          />
         </div>
 
         {/* Scoreboard */}
@@ -1108,11 +1149,6 @@ export default function DevAdminPage() {
           )}
         </div>
 
-        {/* Theme Selector */}
-        <div className="mb-8">
-          <ThemeSelector onThemeChange={handleThemeChange} />
-        </div>
-
         {/* Admin Controls */}
         <div className="mb-8">
           <AdminControls
@@ -1122,8 +1158,6 @@ export default function DevAdminPage() {
             onUpdateScore={handleUpdateScore}
             onDeleteUser={handleDeleteUser}
             competitionId={currentCompetitionId || ''}
-            festivalPosterEnabled={festivalPosterEnabled}
-            onToggleFestivalPoster={handleToggleFestivalPoster}
             users={currentRoom?.memberships?.map((m: Membership) => m.user) || []}
              currentRound={currentRound || undefined}
             recentPresses={recentPresses}
@@ -1169,11 +1203,16 @@ export default function DevAdminPage() {
         {/* Category Game Management */}
         {currentCompetitionId && currentRoom && (
           <div className="mb-8">
-            <CategoryGameManager 
-              competitionId={currentCompetitionId}
-              roomId={currentRoom.id}
-              onWebSocketMessage={lastMessage}
-            />
+            <div
+              className="p-6 rounded-lg shadow mono-border-card"
+              style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
+            >
+              <CategoryGameManager 
+                competitionId={currentCompetitionId}
+                roomId={currentRoom.id}
+                onWebSocketMessage={lastMessage}
+              />
+            </div>
           </div>
         )}
 
@@ -1182,13 +1221,19 @@ export default function DevAdminPage() {
           <>
             {/* Arkanoid Challenge */}
             <div className="mb-8">
-              <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)' }}>
+              <div
+                className="p-6 rounded-lg shadow mono-border-card"
+                style={{ backgroundColor: 'var(--card-bg)' }}
+              >
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold">Arkanoid Challenge</h2>
                 <button
                   onClick={() => setChallengeOpen(true)}
-                  className="px-4 py-2 rounded-md text-white"
-                  style={{ backgroundColor: 'var(--primary)' }}
+                  className="px-4 py-2 rounded-md font-medium"
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    color: theme === 'monochrome' ? '#000000' : 'var(--foreground)',
+                  }}
                   disabled={!currentRound || !!currentRound.endedAt}
                   title={currentRound && !currentRound.endedAt ? 'Start Arkanoid challenge' : 'Round must be active'}
                 >
@@ -1246,13 +1291,19 @@ export default function DevAdminPage() {
 
             {/* Simon Game */}
             <div className="mb-8">
-              <div className="p-6 rounded-lg shadow" style={{ backgroundColor: 'var(--card-bg)' }}>
+              <div
+                className="p-6 rounded-lg shadow mono-border-card"
+                style={{ backgroundColor: 'var(--card-bg)' }}
+              >
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold">🎵 Simon Game</h2>
+                  <h2 className="text-xl font-bold">Simon Game</h2>
                   <button
                     onClick={() => setSimonOpen(true)}
-                    className="px-4 py-2 rounded-md text-white"
-                    style={{ backgroundColor: 'var(--primary)' }}
+                    className="px-4 py-2 rounded-md font-medium"
+                    style={{
+                      backgroundColor: 'var(--primary)',
+                      color: theme === 'monochrome' ? '#000000' : 'var(--foreground)',
+                    }}
                     disabled={!currentRound || !!currentRound.endedAt}
                     title={currentRound && !currentRound.endedAt ? 'Start Simon Game' : 'Round must be active'}
                   >
@@ -1270,8 +1321,29 @@ export default function DevAdminPage() {
                     <span className="text-sm font-medium">Chill Mode (game ends only when all players are eliminated)</span>
                   </label>
                 </div>
-                <div className="text-xs opacity-70 mt-2">
-                  💡 Each game generates a unique random sequence
+                <div className="mb-3">
+                  <label className="block text-sm font-medium mb-2">Difficulty</label>
+                  <div className="flex gap-2">
+                    {(['medium', 'hard', 'extreme'] as const).map(diff => (
+                      <button
+                        key={diff}
+                        onClick={() => setSimonDifficulty(diff)}
+                        className="px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors"
+                        style={{
+                          backgroundColor: simonDifficulty === diff ? 'var(--primary)' : 'transparent',
+                          border: `2px solid ${simonDifficulty === diff ? 'var(--primary)' : 'var(--border)'}`,
+                          color:
+                            simonDifficulty === diff
+                              ? theme === 'monochrome'
+                                ? '#000000'
+                                : 'white'
+                              : 'var(--foreground)',
+                        }}
+                      >
+                        {diff}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1300,7 +1372,7 @@ export default function DevAdminPage() {
                 roomId: currentRoom.id, 
                 roundId: currentRound.id, 
                 type: 'simon',
-                config: { seed: randomSeed, chillMode: simonChillMode } 
+                config: { seed: randomSeed, chillMode: simonChillMode, difficulty: simonDifficulty } 
               })
             })
           }}
@@ -1325,18 +1397,39 @@ export default function DevAdminPage() {
           }}
         />
 
-        {/* Live Press List */}
-        <div className="mb-8">
-          <LivePressList presses={recentPresses} />
-        </div>
+        {/**
+         * Live Press List section temporarily hidden from UI.
+         * Keeping component usage here for potential future debugging.
+         */}
+        {false && (
+          <div className="mb-8">
+            <LivePressList presses={recentPresses} />
+          </div>
+        )}
 
         {/* Winner Display */}
         {currentRound?.winnerUserId && (
           <div className="mb-8">
-            <div className="bg-yellow-100 border border-yellow-400 rounded-lg p-6 text-center">
-              <h3 className="text-xl font-bold text-yellow-800 mb-2">🏆 Winner!</h3>
-              <p className="text-yellow-700">
-                {users.find(u => u.id === currentRound.winnerUserId)?.username || 'Unknown user'} 
+            <div
+              className="rounded-lg p-6 text-center shadow-lg mono-border-card"
+              style={{
+                background: 'linear-gradient(90deg, rgba(0,0,0,0.1), transparent, rgba(0,0,0,0.1))',
+                backgroundColor: 'var(--card-bg)',
+                color: 'var(--foreground)',
+                borderColor: 'var(--primary)',
+                borderWidth: '1px'
+              }}
+            >
+              <h3
+                className="text-xl font-bold mb-2 flex items-center justify-center gap-2"
+                style={{ color: 'var(--primary)' }}
+              >
+                🏆 Winner!
+              </h3>
+              <p className="text-base" style={{ color: 'var(--foreground)' }}>
+                <span className="font-semibold">
+                  {users.find(u => u.id === currentRound.winnerUserId)?.username || 'Unknown user'}
+                </span>{' '}
                 was first to press!
               </p>
             </div>
