@@ -133,6 +133,7 @@ export default function DevUserPage() {
   const [showMyArtists, setShowMyArtists] = useState(false)
   const [showMyActors, setShowMyActors] = useState(false)
   const [showTrophyAnimation, setShowTrophyAnimation] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string; points?: number } | null>(null)
   const [trophyWins, setTrophyWins] = useState<Array<{ id: string; trophy: { name: string; imageKey: string }; wonAt: string }>>([])
   const [trophiesAccordionOpen, setTrophiesAccordionOpen] = useState(true) // Default to open
@@ -995,45 +996,94 @@ export default function DevUserPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <p className="text-sm text-gray-500">
-                {isClerkMode ? 'Signed in with Clerk' : 'DEV USER MODE'}
-              </p>
-              <p className="text-xs text-gray-400">
-                User ID: {userId}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {currentRoom && (
-                <button
-                  onClick={handleLeaveRoom}
-                  className="px-4 py-2 rounded-md text-sm font-medium border-2 hover:opacity-80 transition-colors"
-                  style={{
-                    borderColor: 'var(--border)',
-                    color: 'var(--foreground)',
-                    backgroundColor: 'transparent',
-                  }}
-                >
-                  Leave Room
-                </button>
-              )}
+          <div className="relative flex justify-center items-center mb-4">
+            <h1 className="text-3xl font-bold" style={{ color: 'var(--foreground)' }}>
+              Welcome, {profile.username}!{!isClerkMode && ' (DEV MODE)'}
+            </h1>
+            
+            {/* Hamburger Menu */}
+            <div className="absolute right-0">
               <button
-                onClick={handleLogout}
-                className="px-4 py-2 rounded-md text-sm font-medium border-2 hover:opacity-80 transition-colors"
-                style={{ 
-                  borderColor: 'var(--border)', 
-                  color: 'var(--foreground)',
-                  backgroundColor: 'transparent'
-                }}
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="p-2 hover:opacity-70 transition-all"
+                style={{ color: 'var(--foreground)' }}
+                aria-label="Menu"
               >
-                Logout
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
               </button>
+              
+              {/* Dropdown Menu */}
+              {menuOpen && (
+                <>
+                  <style jsx>{`
+                    @keyframes slideDown {
+                      from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                      }
+                      to {
+                        opacity: 1;
+                        transform: translateY(0);
+                      }
+                    }
+                  `}</style>
+                  <div
+                    className="absolute right-0 mt-2 w-48 rounded-lg shadow-2xl border-2 overflow-hidden z-50"
+                    style={{
+                      backgroundColor: 'var(--card-bg)',
+                      borderColor: 'var(--primary)',
+                      animation: 'slideDown 0.2s ease-out',
+                    }}
+                  >
+                  {currentRoom && (
+                    <button
+                      onClick={() => {
+                        handleLeaveRoom()
+                        setMenuOpen(false)
+                      }}
+                      className="w-full px-4 py-3 text-left hover:opacity-80 transition-all flex items-center gap-2"
+                      style={{
+                        color: 'var(--foreground)',
+                        backgroundColor: 'var(--card-bg)',
+                      }}
+                    >
+                      <span className="text-lg">🚪</span>
+                      <span>Leave Room</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleLogout()
+                      setMenuOpen(false)
+                    }}
+                    className="w-full px-4 py-3 text-left hover:opacity-80 transition-all flex items-center gap-2"
+                    style={{
+                      color: 'var(--foreground)',
+                      backgroundColor: 'var(--card-bg)',
+                      borderTop: currentRoom ? '1px solid var(--border)' : 'none',
+                    }}
+                  >
+                    <span className="text-lg">👋</span>
+                    <span>Logout</span>
+                  </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
-            Welcome, {profile.username}!{!isClerkMode && ' (DEV MODE)'}
-          </h1>
+          <div className="mb-2" />
           <p className="text-xl opacity-80" style={{ color: 'var(--foreground)' }}>
             Your Score:{' '}
             <span className="font-bold" style={{ color: 'var(--primary)' }}>
@@ -1099,37 +1149,6 @@ export default function DevUserPage() {
             </div>
           )}
         </div>
-
-        {/* Status */}
-        <div className="text-center mb-8">
-          {roundStatus && roundStatus.startedAt && !roundStatus.endedAt ? (
-            <div
-              className="inline-block p-4 rounded-lg shadow mono-border-card"
-              style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
-            >
-              <p className="text-lg">
-                Round Status:{' '}
-                <span className="font-bold" style={{ color: 'var(--primary)' }}>
-                  Active
-                </span>
-              </p>
-              <p className="text-sm opacity-80">
-                Buttons: {roundStatus.buttonsEnabled ? 'Enabled' : 'Disabled'}
-              </p>
-            </div>
-          ) : (
-            <div
-              className="inline-block p-4 rounded-lg shadow mono-border-card"
-              style={{ backgroundColor: 'var(--card-bg)', color: 'var(--foreground)' }}
-            >
-              <p className="text-lg">
-                Round Status:{' '}
-                <span className="font-bold opacity-80">Inactive</span>
-              </p>
-            </div>
-          )}
-        </div>
-
 
         {/* Buzzer Button */}
         <div className="flex justify-center mb-8">

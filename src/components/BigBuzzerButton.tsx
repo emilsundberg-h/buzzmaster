@@ -176,13 +176,6 @@ export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstP
           </div>
         )}
         
-        {/* Penalty timer text */}
-        {isInPenalty && penaltyTimeRemaining !== null && (
-          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 text-2xl font-bold z-10 text-red-500">
-            🔒 {Math.ceil(penaltyTimeRemaining)}s
-          </div>
-        )}
-        
         {/* SVG Circular Progress - around the button (regular timer) */}
         {myPressTimerExpiresAt && timeRemaining !== null && timeRemaining > 0 && (
           <svg className="absolute top-0 left-0 w-full h-full transform -rotate-90" viewBox="0 0 208 208" style={{ pointerEvents: 'none' }}>
