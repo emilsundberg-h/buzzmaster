@@ -58,11 +58,12 @@ export async function addTrophyPlayerToDreamEleven(
     data: {
       userId: userId,
       playerId: player.id,
-      revealed: false, // For festival artists
+      revealed: player.type === 'ACTOR' ? true : false, // Actors visible immediately, festival artists hidden
     }
   });
 
-  console.log(`🎉 Added ${player.type === 'FOOTBALLER' ? '⚽' : '🎵'} ${player.name} to user's collection!`);
+  const emoji = player.type === 'FOOTBALLER' ? '⚽' : player.type === 'FESTIVAL' ? '🎵' : '🎬';
+  console.log(`🎉 Added ${emoji} ${player.name} to user's collection!`);
   
   // Broadcast player addition to trigger frontend refresh
   broadcast('dream-eleven:player-added', {

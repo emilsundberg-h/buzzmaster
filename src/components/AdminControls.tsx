@@ -98,7 +98,7 @@ export default function AdminControls({
     }
   }
 
-  const handleTrophySelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
+  const handleTrophySelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL' | 'ACTOR') => {
     // Create a player trophy ID in the format expected by the backend
     const trophyId = `player_${playerId}`
     setButtonsTrophyId(trophyId)
@@ -118,7 +118,7 @@ export default function AdminControls({
     }
   }
 
-  const handleGivePlayerSelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
+  const handleGivePlayerSelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL' | 'ACTOR') => {
     if (!selectedUserId) {
       return
     }
@@ -334,7 +334,7 @@ export default function AdminControls({
                   color: 'var(--foreground)',
                   backgroundColor: selectedPlayerInfo ? 'var(--input-bg)' : 'transparent'
                 }}
-                title={selectedPlayerInfo ? `${selectedPlayerInfo.type === 'FOOTBALLER' ? '⚽' : '🎵'} ${selectedPlayerInfo.name}` : 'Välj en trofé innan du enablerar knapparna (valfritt)'}
+                title={selectedPlayerInfo ? `${selectedPlayerInfo.type === 'FOOTBALLER' ? '⚽' : selectedPlayerInfo.type === 'FESTIVAL' ? '🎵' : '🎬'} ${selectedPlayerInfo.name}` : 'Välj en trofé innan du enablerar knapparna (valfritt)'}
               >
                Trophys
               </button>

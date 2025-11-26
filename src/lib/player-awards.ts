@@ -175,6 +175,7 @@ export async function getUserPlayerStats(userId: string) {
       FOOTBALLER: players.filter(p => p.player.type === 'FOOTBALLER').length,
       FESTIVAL: players.filter(p => p.player.type === 'FESTIVAL').length,
       FILM: players.filter(p => p.player.type === 'FILM').length,
+      ACTOR: players.filter(p => p.player.type === 'ACTOR').length,
     },
   };
 

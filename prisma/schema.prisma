@@ -30,6 +30,7 @@ model User {
   avatarKey  String   @unique
   score      Int      @default(0)
   createdAt  DateTime @default(now())
+  filmSynopsis String? // User's custom film story with their actors
   presses    Press[]
   roomMemberships RoomMembership[]
   sentMessages Message[] @relation("SentMessages")
@@ -334,6 +335,7 @@ enum PlayerType {
   FOOTBALLER
   FESTIVAL
   FILM
+  ACTOR
 }
 
 enum PlayerCategory {

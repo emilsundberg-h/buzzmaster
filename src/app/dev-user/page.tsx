@@ -17,6 +17,7 @@ import ThumbGame from '@/components/ThumbGame'
 import DevDreamElevenModal from '@/components/DevDreamElevenModal'
 import FestivalPoster from '@/components/FestivalPoster'
 import MyArtistsView from '@/components/MyArtistsView'
+import MyActorsView from '@/components/MyActorsView'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -130,6 +131,7 @@ export default function DevUserPage() {
   const [showDreamEleven, setShowDreamEleven] = useState(false)
   const [showFestival, setShowFestival] = useState(false)
   const [showMyArtists, setShowMyArtists] = useState(false)
+  const [showMyActors, setShowMyActors] = useState(false)
   const [showTrophyAnimation, setShowTrophyAnimation] = useState(false)
   const [wonTrophy, setWonTrophy] = useState<{ name: string; imageKey: string; points?: number } | null>(null)
   const [trophyWins, setTrophyWins] = useState<Array<{ id: string; trophy: { name: string; imageKey: string }; wonAt: string }>>([])
@@ -1069,6 +1071,17 @@ export default function DevUserPage() {
                 >
                   Secret Artists
                 </button>
+                <button
+                  onClick={() => setShowMyActors(true)}
+                  className="px-4 py-2 rounded-md font-medium border-2 hover:opacity-80 transition-colors"
+                  style={{
+                    backgroundColor: 'var(--card-bg)',
+                    borderColor: 'var(--primary)',
+                    color: 'var(--primary)',
+                  }}
+                >
+                  Film Actors
+                </button>
                 {festivalPosterEnabled && (
                   <button
                     onClick={() => setShowFestival(true)}
@@ -1220,6 +1233,13 @@ export default function DevUserPage() {
         isOpen={showFestival}
         onClose={() => setShowFestival(false)}
         userId={userId}
+      />
+
+      {/* My Actors View Modal */}
+      <MyActorsView
+        userId={userId}
+        isOpen={showMyActors}
+        onClose={() => setShowMyActors(false)}
       />
     </div>
   )

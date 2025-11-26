@@ -7,18 +7,18 @@ interface Player {
   name: string
   position: string
   imageKey: string
-  type: 'FOOTBALLER' | 'FESTIVAL' | 'FILM'
+  type: 'FOOTBALLER' | 'FESTIVAL' | 'FILM' | 'ACTOR'
   category: string
 }
 
 interface TrophyModalProps {
   isOpen: boolean
   onClose: () => void
-  onSelect: (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => void
+  onSelect: (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL' | 'ACTOR') => void
 }
 
 export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalProps) {
-  const [selectedType, setSelectedType] = useState<'FOOTBALLER' | 'FESTIVAL'>('FOOTBALLER')
+  const [selectedType, setSelectedType] = useState<'FOOTBALLER' | 'FESTIVAL' | 'ACTOR'>('FOOTBALLER')
   const [players, setPlayers] = useState<Player[]>([])
   const [ownedPlayerIds, setOwnedPlayerIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,13 +130,23 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
               >
                 🎵 Musicians
               </button>
+              <button
+                onClick={() => setSelectedType('ACTOR')}
+                className={`px-6 py-3 rounded-lg text-base font-bold transition-all ${
+                  selectedType === 'ACTOR'
+                    ? 'bg-white text-black shadow-lg'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                🎬 Actors
+              </button>
               
               {/* Random Icon Button */}
               <button
                 onClick={handleRandomSelect}
                 disabled={loading || players.length === 0}
                 className="w-12 h-12 rounded-lg text-2xl transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center"
-                title={`Random ${selectedType === 'FOOTBALLER' ? 'Footballer' : 'Musician'}`}
+                title={`Random ${selectedType === 'FOOTBALLER' ? 'Footballer' : selectedType === 'FESTIVAL' ? 'Musician' : 'Actor'}`}
               >
                 🎲
               </button>
@@ -152,7 +162,7 @@ export default function TrophyModal({ isOpen, onClose, onSelect }: TrophyModalPr
             ) : players.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-xl text-white">
-                  No {selectedType === 'FOOTBALLER' ? 'footballers' : 'musicians'} available
+                  No {selectedType === 'FOOTBALLER' ? 'footballers' : selectedType === 'FESTIVAL' ? 'musicians' : 'actors'} available
                 </p>
               </div>
             ) : (

@@ -190,7 +190,7 @@ export default function CategoryGameManager({
     }
   }
 
-  const handleTrophySelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL') => {
+  const handleTrophySelect = async (playerId: string, playerType: 'FOOTBALLER' | 'FESTIVAL' | 'ACTOR') => {
     // Create a player trophy ID in the format expected by the backend
     const trophyId = `player_${playerId}`
     setSelectedTrophyId(trophyId)
