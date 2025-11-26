@@ -22,6 +22,7 @@ interface FormationDisplayProps {
   positions: TeamPosition[]
   onPlayerClick?: (position: number) => void
   editable?: boolean
+  inverted?: boolean  // If true, attackers are at the bottom
 }
 
 const FORMATION_LAYOUTS = {
@@ -59,20 +60,31 @@ export default function FormationDisplay({
   positions,
   onPlayerClick,
   editable = false,
+  inverted = false,
 }: FormationDisplayProps) {
   const layout = FORMATION_LAYOUTS[formation]
   const positionMap = new Map(positions.map(p => [p.position, p.player]))
   const { theme } = useTheme()
+  
+  // Reverse rows if inverted (attackers at bottom)
+  const displayRows = inverted ? [...layout.rows].reverse() : layout.rows
 
-  // Format name: remove "A." prefix from names like "A.andersson" -> "Andersson"
+  // Format name: show only last name
   const formatName = (name: string) => {
-    // Check if name starts with single letter + dot + space/letter
+    // Check if name starts with single letter + dot + space/letter (e.g., "A.andersson")
     const match = name.match(/^[A-Z]\.[a-z]/)
     if (match) {
       // Remove the "X." prefix and capitalize first letter
       const withoutPrefix = name.substring(2)
       return withoutPrefix.charAt(0).toUpperCase() + withoutPrefix.slice(1)
     }
+    
+    // For names with spaces (e.g., "Oliver Giroud"), return only last name
+    const parts = name.split(' ')
+    if (parts.length > 1) {
+      return parts[parts.length - 1]
+    }
+    
     return name
   }
 
@@ -165,7 +177,7 @@ export default function FormationDisplay({
         </div>
         {/* Formation rows */}
         <div className="flex flex-col justify-evenly h-full gap-4 relative z-10">
-          {layout.rows.map((row, rowIndex) => (
+          {displayRows.map((row, rowIndex) => (
             <div key={rowIndex} className="flex justify-center items-center gap-2 px-4">
               {row.positions.map(pos => {
                 const player = positionMap.get(pos)

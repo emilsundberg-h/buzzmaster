@@ -4,20 +4,35 @@ import * as path from 'path';
 
 const prisma = new PrismaClient();
 
-// Parse player name and position from filename
-function parsePlayerFile(filename: string): { name: string; position: PlayerPosition } | null {
+// Load name-values.json
+interface PlayerData {
+  correctName: string;
+  fileName: string;
+  position: string;
+  value: number;
+}
+
+const nameValuesPath = path.join(__dirname, '../name-values.json');
+const nameValuesData: PlayerData[] = JSON.parse(fs.readFileSync(nameValuesPath, 'utf-8'));
+
+// Create map for quick lookup by filename
+const nameValuesMap = new Map<string, PlayerData>();
+nameValuesData.forEach(player => {
+  nameValuesMap.set(player.fileName, player);
+});
+
+// Get player data from name-values.json by filename
+function getPlayerData(filename: string): { name: string; position: PlayerPosition } | null {
   if (!filename.endsWith('.webp')) return null;
   
-  const nameWithoutExt = filename.replace('.webp', '');
-  const parts = nameWithoutExt.split('_');
-  
-  if (parts.length < 2) return null;
-  
-  const positionStr = parts[parts.length - 1].toUpperCase();
-  const name = parts.slice(0, -1).join(' ');
+  const playerData = nameValuesMap.get(filename);
+  if (!playerData) {
+    console.warn(`⚠️  No data found in name-values.json for: ${filename}`);
+    return null;
+  }
   
   let position: PlayerPosition;
-  switch (positionStr) {
+  switch (playerData.position.toUpperCase()) {
     case 'GK':
       position = PlayerPosition.GK;
       break;
@@ -31,29 +46,26 @@ function parsePlayerFile(filename: string): { name: string; position: PlayerPosi
       position = PlayerPosition.FWD;
       break;
     default:
+      console.warn(`⚠️  Invalid position for ${filename}: ${playerData.position}`);
       return null;
   }
   
-  // Capitalize name properly
-  const capitalizedName = name
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-  
-  return { name: capitalizedName, position };
+  return { name: playerData.correctName, position };
 }
 
 async function seedPlayers() {
   console.log('🌱 Seeding players...\n');
   
-  // Clear existing players
+  // Clear existing players (CASCADE will handle related records)
+  // First delete junction tables
   await prisma.teamPosition.deleteMany();
   await prisma.userPlayer.deleteMany();
   await prisma.userTeam.deleteMany();
+  // Then delete players (this will cascade to simulator submissions via onDelete: Cascade)
   await prisma.player.deleteMany();
   
-  const startingPackPath = path.join(process.cwd(), '../public/starting_pack');
-  const footballersPath = path.join(process.cwd(), '../public/footballers');
+  const startingPackPath = path.join(__dirname, '../public/starting_pack');
+  const footballersPath = path.join(__dirname, '../public/footballers');
   
   // Seed starting pack
   console.log('📦 Adding starting pack players...');
@@ -61,13 +73,13 @@ async function seedPlayers() {
   let startingCount = 0;
   
   for (const file of startingPackFiles) {
-    const parsed = parsePlayerFile(file);
-    if (!parsed) continue;
+    const playerData = getPlayerData(file);
+    if (!playerData) continue;
     
     await prisma.player.create({
       data: {
-        name: parsed.name,
-        position: parsed.position,
+        name: playerData.name,
+        position: playerData.position,
         imageKey: `starting_pack/${file}`,
         type: PlayerType.FOOTBALLER,
         category: PlayerCategory.STARTER,
@@ -75,7 +87,7 @@ async function seedPlayers() {
     });
     
     startingCount++;
-    console.log(`  ✓ ${parsed.name} (${parsed.position})`);
+    console.log(`  ✓ ${playerData.name} (${playerData.position})`);
   }
   
   console.log(`\n✅ Added ${startingCount} starting pack players\n`);
@@ -86,13 +98,13 @@ async function seedPlayers() {
   let awardCount = 0;
   
   for (const file of footballerFiles) {
-    const parsed = parsePlayerFile(file);
-    if (!parsed) continue;
+    const playerData = getPlayerData(file);
+    if (!playerData) continue;
     
     await prisma.player.create({
       data: {
-        name: parsed.name,
-        position: parsed.position,
+        name: playerData.name,
+        position: playerData.position,
         imageKey: `footballers/${file}`,
         type: PlayerType.FOOTBALLER,
         category: PlayerCategory.AWARD,
@@ -100,7 +112,7 @@ async function seedPlayers() {
     });
     
     awardCount++;
-    console.log(`  ✓ ${parsed.name} (${parsed.position})`);
+    console.log(`  ✓ ${playerData.name} (${playerData.position})`);
   }
   
   console.log(`\n✅ Added ${awardCount} award footballers\n`);

@@ -36,6 +36,9 @@ export default function DevDreamElevenModal({ isOpen, onClose, userId }: DevDrea
   const [loading, setLoading] = useState(true)
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null)
   const [swapping, setSwapping] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [showSubmitModal, setShowSubmitModal] = useState(false)
+  const [teamName, setTeamName] = useState('')
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -172,6 +175,36 @@ export default function DevDreamElevenModal({ isOpen, onClose, userId }: DevDrea
     }
   }
 
+  const handleSubmitToSimulator = async () => {
+    if (!teamName.trim()) {
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch('/api/simulator/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamName: teamName.trim() }),
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit')
+      }
+
+      // Success - close modal and reset
+      setShowSubmitModal(false)
+      setTeamName('')
+    } catch (error: any) {
+      console.error('Error submitting to simulator:', error)
+      // Could add error state here instead of alert if needed
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   // Helper functions
   const getCurrentPlayer = (position: number): Player | null => {
     return team?.positions.find(tp => tp.position === position)?.player || null
@@ -247,7 +280,7 @@ export default function DevDreamElevenModal({ isOpen, onClose, userId }: DevDrea
               </div>
             ) : (
               <>
-                {/* Formation Selector - Top of pitch */}
+                {/* Formation Selector & Send Button - Top of pitch */}
                 <div className="mb-3 bg-black/60 backdrop-blur-md rounded-xl p-2 relative z-20">
                   <div className="flex gap-2 justify-center">
                     {(['F442', 'F433', 'F343'] as const).map(formation => (
@@ -263,6 +296,29 @@ export default function DevDreamElevenModal({ isOpen, onClose, userId }: DevDrea
                         {formation.replace('F', '').replace(/(\d)(\d)(\d)/, '$1-$2-$3')}
                       </button>
                     ))}
+                    
+                    {/* Send Button - same style as formation buttons */}
+                    {team.positions.length === 11 && (
+                      <button
+                        onClick={() => setShowSubmitModal(true)}
+                        className="px-5 py-2 rounded-lg text-base font-bold bg-white/20 text-white hover:bg-white/30 flex items-center justify-center"
+                      >
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          width="20" 
+                          height="20" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        >
+                          <line x1="22" y1="2" x2="11" y2="13"></line>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -290,6 +346,64 @@ export default function DevDreamElevenModal({ isOpen, onClose, userId }: DevDrea
           onSwap={handlePlayerSwap}
           onClose={() => setSelectedPosition(null)}
         />
+      )}
+
+      {/* Submit to Simulator Modal */}
+      {showSubmitModal && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/80 z-[60] backdrop-blur-sm"
+            onClick={() => !submitting && setShowSubmitModal(false)}
+          />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
+            <div 
+              className="rounded-xl max-w-md w-full p-6 pointer-events-auto shadow-2xl"
+              style={{ backgroundColor: 'var(--card-bg)', border: '2px solid var(--border)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-2xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>
+                Submit to Simulator
+              </h3>
+              <p className="mb-4 opacity-80" style={{ color: 'var(--foreground)' }}>
+                Give your Dream Eleven a cool name! This will be submitted to admin for use in match simulations.
+              </p>
+              
+              <input
+                type="text"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="e.g., 'The Legends', 'Dream Team XI'..."
+                className="w-full px-4 py-3 rounded-lg mb-4 focus:outline-none placeholder-opacity-50"
+                style={{ 
+                  backgroundColor: 'var(--input-bg)', 
+                  color: 'var(--foreground)',
+                  border: '2px solid var(--border)'
+                }}
+                disabled={submitting}
+                maxLength={50}
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSubmitModal(false)}
+                  disabled={submitting}
+                  className="flex-1 px-4 py-3 rounded-lg font-bold disabled:opacity-50 transition-colors"
+                  style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitToSimulator}
+                  disabled={submitting || !teamName.trim()}
+                  className="flex-1 px-4 py-3 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  style={{ backgroundColor: 'var(--foreground)', color: 'var(--background)' }}
+                >
+                  {submitting ? 'Submitting...' : 'Submit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </>
   )

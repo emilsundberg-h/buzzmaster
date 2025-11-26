@@ -85,16 +85,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Map avatarKey to captain name
+    // Map avatarKey to captain name (must match exactName in name-values.json)
     const captainMap: Record<string, string> = {
-      '01': 'Baggio',
-      '02': 'Beckham',
-      '03': 'Brolin',
-      '04': 'Giroud',
+      '01': 'Roberto Baggio',
+      '02': 'David Beckham',
+      '03': 'Tomas Brolin',
+      '04': 'Oliver Giroud',
       '05': 'Ronaldinho',
       '06': 'Ronaldo',
-      '07': 'Totti',
-      '08': 'Zidane',
+      '07': 'Francesco Totti',
+      '08': 'Zinedine Zidane',
     };
 
     // Add captain to user's Dream Eleven if they don't have it

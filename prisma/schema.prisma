@@ -41,6 +41,7 @@ model User {
   trophyWins TrophyWin[]
   players    UserPlayer[] // Players owned by this user
   team       UserTeam? // User's starting eleven
+  simulatorSubmissions SimulatorSubmission[] // User's simulator submissions
 }
 
 model Room {
@@ -321,6 +322,7 @@ model Player {
   
   userPlayers UserPlayer[] // Players owned by users
   teamPositions TeamPosition[] // Positions in user teams
+  simulatorSubmissionPlayers SimulatorSubmissionPlayer[] // Positions in simulator submissions
 }
 
 enum PlayerPosition {
@@ -392,3 +394,41 @@ model TeamPosition {
   @@index([teamId])
   @@index([playerId])
 }
+
+// SimulatorSubmission - Dream Eleven submissions for match simulator
+model SimulatorSubmission {
+  id          String   @id @default(cuid())
+  userId      String
+  teamName    String   // User's team name
+  formation   Formation // Team formation (F442, F433, etc)
+  submittedAt DateTime @default(now())
+  status      SimulatorStatus @default(PENDING) // PENDING, APPROVED, USED
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  players     SimulatorSubmissionPlayer[]
+  
+  @@index([userId])
+  @@index([status])
+}
+
+enum SimulatorStatus {
+  PENDING   // Waiting for admin approval
+  APPROVED  // Approved and can be used in simulator
+  USED      // Already used in a match
+}
+
+// SimulatorSubmissionPlayer - Players in a simulator submission
+model SimulatorSubmissionPlayer {
+  id           String   @id @default(cuid())
+  submissionId String
+  playerId     String
+  position     Int      // Position in formation (0-10)
+  
+  submission   SimulatorSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  player       Player   @relation(fields: [playerId], references: [id])
+  
+  @@unique([submissionId, position])
+  @@index([submissionId])
+  @@index([playerId])
+}
+

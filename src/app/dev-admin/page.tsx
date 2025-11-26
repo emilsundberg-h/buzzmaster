@@ -14,6 +14,7 @@ import QuestionManager from '@/components/QuestionManager'
 import CategoryGameManager from '@/components/CategoryGameManager'
 import ThemeSelector from '@/components/ThemeSelector'
 import ChatMessenger from '@/components/ChatMessenger'
+import SimulatorSection from '@/components/SimulatorSection'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme, Theme } from '@/contexts/ThemeContext'
 
@@ -112,6 +113,8 @@ export default function DevAdminPage() {
   const [showUsers, setShowUsers] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [pendingDeleteUserId, setPendingDeleteUserId] = useState<string | null>(null)
+  // Simulator section
+  const [showSimulator, setShowSimulator] = useState(false)
   // Challenge config
   const [challengeOpen, setChallengeOpen] = useState(false)
   const [arkSeed, setArkSeed] = useState(12345)
@@ -1435,6 +1438,24 @@ export default function DevAdminPage() {
             </div>
           </div>
         )}
+
+        {/* Dream Eleven Simulator */}
+        <div className="mb-8">
+          <div
+            className="rounded-lg shadow overflow-hidden mono-border-card"
+            style={{ backgroundColor: 'var(--card-bg)' }}
+          >
+            <button
+              onClick={() => setShowSimulator(s => !s)}
+              className="w-full px-6 py-4 flex items-center justify-between hover:opacity-80 transition-opacity"
+            >
+              <h2 className="text-xl font-bold">⚽ Dream Eleven Simulator</h2>
+              <span className="text-2xl">{showSimulator ? '⌄' : '›'}</span>
+            </button>
+
+            {showSimulator && <SimulatorSection />}
+          </div>
+        </div>
       </div>
     </div>
     
