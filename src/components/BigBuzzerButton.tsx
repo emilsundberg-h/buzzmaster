@@ -24,13 +24,41 @@ interface BigBuzzerButtonProps {
 export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstPress, hasUserPressed, roundStatus, myPressTimerExpiresAt }: BigBuzzerButtonProps) {
   const [isPressed, setIsPressed] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
+  const [penaltyEndsAt, setPenaltyEndsAt] = useState<number | null>(null)
+  const [penaltyTimeRemaining, setPenaltyTimeRemaining] = useState<number | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
+
+  // Penalty timer - counts down from 5 seconds
+  useEffect(() => {
+    if (penaltyEndsAt) {
+      const updatePenaltyTimer = () => {
+        const now = Date.now()
+        const remaining = Math.max(0, (penaltyEndsAt - now) / 1000)
+        setPenaltyTimeRemaining(remaining)
+        
+        if (remaining === 0) {
+          setPenaltyEndsAt(null)
+          setPenaltyTimeRemaining(null)
+        }
+      }
+
+      updatePenaltyTimer()
+      const interval = setInterval(updatePenaltyTimer, 50) // Update every 50ms
+      
+      return () => clearInterval(interval)
+    } else {
+      setPenaltyTimeRemaining(null)
+    }
+  }, [penaltyEndsAt])
 
   // Determine button state based on round status
   const isRoundActive = roundStatus && roundStatus.startedAt && !roundStatus.endedAt
   const areButtonsEnabled = roundStatus?.buttonsEnabled ?? false
   const isTimerExpired = timeRemaining !== null && timeRemaining <= 0
-  const isButtonDisabled = disabled || !isRoundActive || !areButtonsEnabled || (isFirstPress && isTimerExpired)
+  const isInPenalty = penaltyTimeRemaining !== null && penaltyTimeRemaining > 0
+  
+  // Check if button press should be blocked (but button still looks clickable)
+  const shouldBlockPress = disabled || !isRoundActive || isInPenalty || (isFirstPress && isTimerExpired)
   
   // Timer logic - use per-press timer if available
   useEffect(() => {
@@ -67,11 +95,26 @@ export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstP
 
   const handlePress = async () => {
     console.log('BigBuzzerButton: handlePress called')
-    console.log('BigBuzzerButton: isButtonDisabled:', isButtonDisabled)
+    console.log('BigBuzzerButton: areButtonsEnabled:', areButtonsEnabled)
+    console.log('BigBuzzerButton: isInPenalty:', isInPenalty)
     console.log('BigBuzzerButton: roundStatus:', roundStatus)
     
-    if (isButtonDisabled) {
-      console.log('BigBuzzerButton: Button is disabled, returning')
+    // Check if clicking locked button (not in penalty already)
+    if (!areButtonsEnabled && !isInPenalty && isRoundActive) {
+      console.log('BigBuzzerButton: Clicked locked button - starting 5 second penalty')
+      setPenaltyEndsAt(Date.now() + 5000) // 5 seconds from now
+      return
+    }
+    
+    // Block press if conditions aren't met
+    if (shouldBlockPress) {
+      console.log('BigBuzzerButton: Press blocked')
+      return
+    }
+    
+    // Also block if buttons aren't enabled
+    if (!areButtonsEnabled) {
+      console.log('BigBuzzerButton: Buttons not enabled')
       return
     }
 
@@ -133,7 +176,14 @@ export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstP
           </div>
         )}
         
-        {/* SVG Circular Progress - around the button */}
+        {/* Penalty timer text */}
+        {isInPenalty && penaltyTimeRemaining !== null && (
+          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 text-2xl font-bold z-10 text-red-500">
+            🔒 {Math.ceil(penaltyTimeRemaining)}s
+          </div>
+        )}
+        
+        {/* SVG Circular Progress - around the button (regular timer) */}
         {myPressTimerExpiresAt && timeRemaining !== null && timeRemaining > 0 && (
           <svg className="absolute top-0 left-0 w-full h-full transform -rotate-90" viewBox="0 0 208 208" style={{ pointerEvents: 'none' }}>
             {/* Background circle - lighter */}
@@ -162,12 +212,40 @@ export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstP
           </svg>
         )}
         
+        {/* SVG Circular Progress - Penalty timer (red) */}
+        {isInPenalty && penaltyTimeRemaining !== null && (
+          <svg className="absolute top-0 left-0 w-full h-full transform -rotate-90" viewBox="0 0 208 208" style={{ pointerEvents: 'none' }}>
+            {/* Background circle - lighter */}
+            <circle
+              cx="104"
+              cy="104"
+              r="96"
+              fill="none"
+              stroke="#fee"
+              strokeWidth="14"
+              opacity="0.3"
+            />
+            {/* Progress circle - red for penalty */}
+            <circle
+              cx="104"
+              cy="104"
+              r="96"
+              fill="none"
+              stroke="#ef4444"
+              strokeWidth="14"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference - ((penaltyTimeRemaining / 5) * 100 / 100) * circumference}
+              className="penalty-bar"
+            />
+          </svg>
+        )}
+        
         <button
           onClick={handlePress}
-          disabled={isButtonDisabled}
           className={`
             absolute top-2 left-2 w-48 h-48 rounded-full overflow-hidden transition-all
-            ${isButtonDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}
+            cursor-pointer
             ${isPressed ? 'scale-95' : 'hover:scale-105'}
             shadow-lg hover:shadow-xl
           `}
@@ -180,11 +258,11 @@ export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstP
           className="object-cover"
         />
         
-        {/* Show overlay when button is disabled OR when user has pressed but is not first */}
-        {(isButtonDisabled || (hasUserPressed && !isFirstPress)) && (
+        {/* Show overlay for LOCKED, PENALTY, PRESSED, or TIME UP states */}
+        {(isInPenalty || (!areButtonsEnabled && isRoundActive) || (hasUserPressed && !isFirstPress) || (isFirstPress && isTimerExpired)) && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
             <span className="text-white font-bold text-2xl drop-shadow-2xl bg-black bg-opacity-80 px-5 py-2 rounded-lg">
-              {isTimerExpired ? 'TIME UP' : hasUserPressed ? 'PRESSED' : 'LOCKED'}
+              {isInPenalty ? 'PENALTY' : (!areButtonsEnabled && !isInPenalty && isRoundActive) ? 'LOCKED' : isTimerExpired ? 'TIME UP' : 'PRESSED'}
             </span>
           </div>
         )}
