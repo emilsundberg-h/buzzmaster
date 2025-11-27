@@ -109,5 +109,6 @@
   { "correctName": "Ronaldinho", "fileName": "ronaldinho_mid_c.webp", "position": "mid", "value": 99 },
   { "correctName": "Ronaldo", "fileName": "ronaldo_fwd_c.webp", "position": "fwd", "value": 99 },
   { "correctName": "Francesco Totti", "fileName": "totti_mid_c.webp", "position": "mid", "value": 100 },
-  { "correctName": "Zinedine Zidane", "fileName": "zidane_mid_c.webp", "position": "mid", "value": 96 }
+  { "correctName": "Zinedine Zidane", "fileName": "zidane_mid_c.webp", "position": "mid", "value": 96 },
+  { "correctName": "Eden Hazard", "fileName": "hazard_mid.webp", "position": "mid", "value": 96 }
 ]

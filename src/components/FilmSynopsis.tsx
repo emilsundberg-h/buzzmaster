@@ -99,15 +99,6 @@ export default function FilmSynopsis({ userId, isOpen = true, onClose, inline = 
         </div>
       ) : (
         <>
-          {/* Auto-save indicator */}
-          {lastSaved && (
-            <div className="text-right">
-              <p className="text-xs opacity-70">
-                {saving ? 'Saving...' : `Last saved: ${lastSaved.toLocaleTimeString('en-US')}`}
-              </p>
-            </div>
-          )}
-          
           {/* Starring */}
           <div>
             <h3 className="text-lg font-semibold mb-2">Starring:</h3>

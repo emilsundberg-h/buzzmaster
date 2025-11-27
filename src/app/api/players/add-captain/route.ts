@@ -69,7 +69,8 @@ export async function POST(request: NextRequest) {
     await db.userPlayer.create({
       data: {
         userId: user.id,
-        playerId: captain.id
+        playerId: captain.id,
+        revealed: true, // Captains are footballers and should be visible immediately
       }
     });
 

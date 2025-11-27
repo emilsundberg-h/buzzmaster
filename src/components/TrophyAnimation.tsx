@@ -116,13 +116,13 @@ export default function TrophyAnimation({
                   style={{
                     boxShadow: '0 10px 50px rgba(255, 215, 0, 0.6)',
                     animation: 'float 2s ease-in-out infinite',
-                    filter: trophyImageKey.includes('actors') ? 'none' : 'blur(8px)'
+                    filter: trophyImageKey.includes('festival') ? 'blur(8px)' : 'none'
                   }}
                 />
               </div>
               
               <h3 className="text-2xl font-bold text-white">
-                {trophyImageKey.includes('actors') ? trophyName : '???'}
+                {trophyImageKey.includes('festival') ? '???' : trophyName}
               </h3>
               <p className="text-lg text-yellow-300 mt-2">
                 {trophyImageKey.includes('footballer') ? '⚽ Fotbollsspelare' : trophyImageKey.includes('actors') ? '🎬 Skådespelare' : '🎵 Artist'}

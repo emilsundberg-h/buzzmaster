@@ -34,12 +34,17 @@ export async function POST(req: NextRequest) {
     });
 
     // Give user all starting pack players
-    await db.userPlayer.createMany({
-      data: startingPackPlayers.map(player => ({
-        userId: user.id,
-        playerId: player.id,
-      })),
-    });
+    await Promise.all(
+      startingPackPlayers.map(player =>
+        db.userPlayer.create({
+          data: {
+            userId: user.id,
+            playerId: player.id,
+            revealed: true, // Starting pack footballers are always visible
+          },
+        })
+      )
+    );
 
     // Create initial team with default formation if doesn't exist
     if (!user.team) {

@@ -225,7 +225,7 @@ export default function DreamElevenModal({ isOpen, onClose, roomId }: DreamEleve
               <>
                 {/* Formation Selector - Top of pitch */}
                 <div className="mb-3 bg-black/60 backdrop-blur-md rounded-xl p-2 relative z-20">
-                  <div className="flex gap-2 justify-center">
+                  <div className="flex gap-2 justify-center items-center">
                     {(['F442', 'F433', 'F343'] as const).map(formation => (
                       <button
                         key={formation}

@@ -472,7 +472,24 @@ export default function DevAdminPage() {
                   console.log('WebSocket: Connected to server')
                   break
                 default:
-                  console.log('WebSocket: Unknown message type:', lastMessage.type)
+                  // Check if this is a room-wrapped message (type is roomId)
+                  if (lastMessage.type && lastMessage.type.startsWith('cmi') && lastMessage.data) {
+                    console.log('WebSocket: Room-wrapped message detected:', lastMessage.data)
+                    const roomMessage = lastMessage.data
+                    
+                    switch (roomMessage.type) {
+                      case 'festival-poster:toggled':
+                        console.log('WebSocket: Festival poster toggled (room-wrapped)', roomMessage.data?.enabled)
+                        if (typeof roomMessage.data?.enabled === 'boolean') {
+                          setFestivalPosterEnabled(roomMessage.data.enabled)
+                        }
+                        break
+                      default:
+                        console.log('WebSocket: Unknown room message type:', roomMessage.type)
+                    }
+                  } else {
+                    console.log('WebSocket: Unknown message type:', lastMessage.type)
+                  }
               }
             }
           }

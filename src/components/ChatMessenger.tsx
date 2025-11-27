@@ -308,6 +308,8 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
       const chatWindow = document.querySelector('[data-chat-window]')
       if (chatWindow && !chatWindow.contains(event.target as Node)) {
         setIsMinimized(true)
+        setActiveChat(null) // Reset to home screen when closing
+        setMessages([]) // Clear messages
       }
     }
 
@@ -431,6 +433,8 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
                 setTimeout(() => {
                   setIsMinimized(true)
                   setClosing(false)
+                  setActiveChat(null) // Reset to home screen when closing
+                  setMessages([]) // Clear messages
                 }, 250)
               }}
                 className="p-2 rounded-full transition-all duration-200 focus:outline-none"

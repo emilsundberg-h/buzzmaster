@@ -168,6 +168,17 @@ export default function SimulatorSection() {
     }
   };
 
+  const testVoice = async () => {
+    try {
+      await soundEngineRef.current?.initialize();
+      await soundEngineRef.current?.speak('Testing voice. This is a test of the text to speech system.', 'en-GB');
+      alert('Voice test completed!');
+    } catch (error) {
+      console.error('Voice test error:', error);
+      alert('Voice test failed. Check console for details.');
+    }
+  };
+
   const resetMatch = () => {
     setMatchResult(null);
     setEvents([]);
@@ -449,15 +460,25 @@ export default function SimulatorSection() {
             </div>
           </div>
 
-          {/* Start Button */}
-          <button
-            onClick={startMatch}
-            disabled={!selectedTeam1 || !selectedTeam2 || selectedTeam1 === selectedTeam2}
-            className="w-full py-3 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: 'var(--foreground)', color: 'var(--background)' }}
-          >
-            🎬 Start Match Simulation
-          </button>
+          {/* Buttons */}
+          <div className="space-y-3">
+            <button
+              onClick={startMatch}
+              disabled={!selectedTeam1 || !selectedTeam2 || selectedTeam1 === selectedTeam2}
+              className="w-full py-3 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: 'var(--foreground)', color: 'var(--background)' }}
+            >
+              🎬 Start Match Simulation
+            </button>
+            
+            <button
+              onClick={testVoice}
+              className="w-full py-2 rounded-lg font-bold transition-colors"
+              style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
+            >
+              🔊 Test Voice
+            </button>
+          </div>
         </>
       )}
     </div>

@@ -58,7 +58,7 @@ export async function addTrophyPlayerToDreamEleven(
     data: {
       userId: userId,
       playerId: player.id,
-      revealed: player.type === 'ACTOR' ? true : false, // Actors visible immediately, festival artists hidden
+      revealed: player.type === 'FESTIVAL' ? false : true, // Festival artists hidden, footballers and actors visible immediately
     }
   });
 

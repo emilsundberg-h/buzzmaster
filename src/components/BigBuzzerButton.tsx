@@ -169,12 +169,6 @@ export default function BigBuzzerButton({ avatarKey, disabled, onPress, isFirstP
       
       {/* Circular progress bar wrapper */}
       <div className="relative w-52 h-52">
-        {/* Timer text */}
-        {myPressTimerExpiresAt && timeRemaining !== null && timeRemaining > 0 && (
-          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 text-2xl font-bold z-10">
-            {Math.ceil(timeRemaining)}s
-          </div>
-        )}
         
         {/* SVG Circular Progress - around the button (regular timer) */}
         {myPressTimerExpiresAt && timeRemaining !== null && timeRemaining > 0 && (

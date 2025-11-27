@@ -6,6 +6,8 @@ export class SoundEngine {
   baseVolume: number;
   enabled: boolean;
   voicesLoaded: boolean;
+  isIOS: boolean;
+  speechInitialized: boolean;
   
   constructor() {
     this.audioContext = null;
@@ -14,6 +16,11 @@ export class SoundEngine {
     this.baseVolume = 0.3;
     this.enabled = false;
     this.voicesLoaded = false;
+    this.speechInitialized = false;
+    
+    // Detektera iOS
+    this.isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    console.log('SoundEngine: iOS detected:', this.isIOS);
     
     // Ladda röster
     this.loadVoices();
@@ -46,6 +53,16 @@ export class SoundEngine {
       
       // Starta bakgrundsljud
       this.startCrowdNoise();
+      
+      // iOS-specifik initialisering för speech
+      if (this.isIOS && 'speechSynthesis' in window) {
+        console.log('SoundEngine: Initializing iOS speech synthesis');
+        // Trigga speech synthesis med en tom utterance för att "väcka" den
+        const utterance = new SpeechSynthesisUtterance('');
+        utterance.volume = 0;
+        window.speechSynthesis.speak(utterance);
+        this.speechInitialized = true;
+      }
     } catch (error) {
       console.error('Kunde inte initiera ljudmotor:', error);
     }
@@ -173,40 +190,59 @@ export class SoundEngine {
   // Text-to-speech kommentar - dela upp i mindre delar för att undvika buggar
   async speak(text: string, lang: string = 'en-GB', onProgress?: (read: number, total: number) => void) {
     if (typeof window === 'undefined') return;
-    if ('speechSynthesis' in window) {
-      // Vänta på att röster är laddade
-      await this.ensureVoicesLoaded();
+    if (!('speechSynthesis' in window)) {
+      console.error('SoundEngine: speechSynthesis not supported');
+      return;
+    }
+    
+    // Vänta på att röster är laddade
+    await this.ensureVoicesLoaded();
+    
+    console.log('SoundEngine: Speaking', text.length, 'characters');
+    console.log('SoundEngine: iOS mode:', this.isIOS);
+    
+    // iOS-specifik workaround: Pausa och återuppta för att undvika att speech "fastnar"
+    if (this.isIOS) {
+      window.speechSynthesis.cancel();
+      // Kort delay för att låta cancel slutföras
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    // Dela upp texten i meningar (max ~200 tecken per chunk för säkerhet)
+    const chunks = this.splitIntoChunks(text, 200);
+    console.log('SoundEngine: Split into', chunks.length, 'chunks');
+    
+    // Använd bästa tillgängliga engelska rösten
+    const voice = this.getBestEnglishVoice();
+    console.log('SoundEngine: Using voice:', voice?.name || 'default', voice?.lang || 'unknown');
+    
+    let totalRead = 0;
+    
+    // Spela varje chunk i följd
+    for (let i = 0; i < chunks.length; i++) {
+      console.log(`SoundEngine: Speaking chunk ${i + 1}/${chunks.length}`);
       
-      console.log('Speaking:', text.length, 'characters');
-      
-      // Dela upp texten i meningar (max ~200 tecken per chunk för säkerhet)
-      const chunks = this.splitIntoChunks(text, 200);
-      console.log('Split into', chunks.length, 'chunks');
-      
-      // Använd bästa tillgängliga engelska rösten
-      const voice = this.getBestEnglishVoice();
-      console.log('Using voice:', voice?.name || 'default');
-      
-      let totalRead = 0;
-      
-      // Spela varje chunk i följd
-      for (let i = 0; i < chunks.length; i++) {
-        await this.speakChunk(chunks[i], voice, lang);
-        
-        // Uppdatera progress efter varje chunk
-        totalRead += chunks[i].length;
-        if (onProgress) {
-          onProgress(totalRead, text.length);
-        }
-        
-        // Liten paus mellan chunks för att undvika att de krockar
-        if (i < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+      // iOS workaround: Kontrollera om speech är pausad och återuppta
+      if (this.isIOS && window.speechSynthesis.paused) {
+        console.log('SoundEngine: iOS speech was paused, resuming...');
+        window.speechSynthesis.resume();
       }
       
-      console.log('All speech completed!');
+      await this.speakChunk(chunks[i], voice, lang);
+      
+      // Uppdatera progress efter varje chunk
+      totalRead += chunks[i].length;
+      if (onProgress) {
+        onProgress(totalRead, text.length);
+      }
+      
+      // Liten paus mellan chunks för att undvika att de krockar
+      if (i < chunks.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
+    
+    console.log('SoundEngine: All speech completed!');
   }
   
   // Dela upp text i chunks baserat på meningar
@@ -248,15 +284,36 @@ export class SoundEngine {
       utterance.volume = 1.0;
       
       utterance.onerror = (event) => {
-        console.error('Speech error:', event);
+        console.error('SoundEngine: Speech error:', event.error, event);
         resolve(); // Fortsätt ändå
       };
       
       utterance.onend = () => {
+        console.log('SoundEngine: Chunk completed');
         resolve();
       };
       
+      utterance.onstart = () => {
+        console.log('SoundEngine: Chunk started');
+      };
+      
+      console.log('SoundEngine: Calling speechSynthesis.speak()');
       window.speechSynthesis.speak(utterance);
+      
+      // iOS workaround: Sätt en timeout för att undvika att fastna
+      if (this.isIOS) {
+        const timeout = setTimeout(() => {
+          console.warn('SoundEngine: iOS speech timeout, forcing resolve');
+          resolve();
+        }, text.length * 100); // ~100ms per tecken
+        
+        // Rensa timeout när utterance är klar
+        const originalOnEnd = utterance.onend;
+        utterance.onend = (event) => {
+          clearTimeout(timeout);
+          if (originalOnEnd) originalOnEnd.call(utterance, event);
+        };
+      }
     });
   }
   

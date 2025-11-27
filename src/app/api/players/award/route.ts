@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: user.id,
         playerId: randomPlayer.id,
+        revealed: randomPlayer.type === 'FESTIVAL' ? false : true, // Festival artists hidden, footballers and actors visible immediately
       },
       include: {
         player: true,
@@ -112,6 +113,7 @@ export async function PUT(req: NextRequest) {
       data: {
         userId: user.id,
         playerId: player.id,
+        revealed: player.type === 'FESTIVAL' ? false : true, // Festival artists hidden, footballers and actors visible immediately
       },
       include: {
         player: true,

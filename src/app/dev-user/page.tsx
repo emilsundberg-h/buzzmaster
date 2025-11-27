@@ -358,6 +358,12 @@ export default function DevUserPage() {
               setTheme(actualMessage.data.theme)
             }
             break
+          case 'festival-poster:toggled':
+            console.log('WebSocket: Festival poster toggled event received (wrapped)', actualMessage.data?.enabled)
+            if (typeof actualMessage.data?.enabled === 'boolean') {
+              setFestivalPosterEnabled(actualMessage.data.enabled)
+            }
+            break
           case 'category-game:started':
             console.log('WebSocket: Category game started - closing Dream Eleven modal')
             setShowDreamEleven(false)
@@ -563,7 +569,24 @@ export default function DevUserPage() {
             console.log('WebSocket: Connected to server')
             break
           default:
-            console.log('WebSocket: Unknown message type:', lastMessage.type)
+            // Check if this is a room-wrapped message (type is roomId)
+            if (lastMessage.type && lastMessage.type.startsWith('cmi') && lastMessage.data) {
+              console.log('WebSocket: Room-wrapped message detected:', lastMessage.data)
+              const roomMessage = lastMessage.data
+              
+              switch (roomMessage.type) {
+                case 'festival-poster:toggled':
+                  console.log('WebSocket: Festival poster toggled (room-wrapped)', roomMessage.data?.enabled)
+                  if (typeof roomMessage.data?.enabled === 'boolean') {
+                    setFestivalPosterEnabled(roomMessage.data.enabled)
+                  }
+                  break
+                default:
+                  console.log('WebSocket: Unknown room message type:', roomMessage.type)
+              }
+            } else {
+              console.log('WebSocket: Unknown message type:', lastMessage.type)
+            }
         }
       }
     }
@@ -1238,6 +1261,7 @@ export default function DevUserPage() {
         isOpen={showDreamEleven}
         onClose={() => setShowDreamEleven(false)}
         userId={userId}
+        roomId={currentRoom?.id}
       />
 
       {/* My Artists View Modal */}

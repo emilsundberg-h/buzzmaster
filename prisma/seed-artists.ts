@@ -48,8 +48,8 @@ async function seedArtists() {
     }
   });
   
-  const festivalPath = path.join(process.cwd(), '../public/festival');
-  const actorsPath = path.join(process.cwd(), '../public/actors');
+  const festivalPath = path.join(__dirname, '../public/festival');
+  const actorsPath = path.join(__dirname, '../public/actors');
   
   // Seed festival artists (musicians)
   console.log('🎤 Adding festival artists...');

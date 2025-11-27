@@ -28,9 +28,10 @@ interface DevDreamElevenModalProps {
   isOpen: boolean
   onClose: () => void
   userId: string
+  roomId?: string
 }
 
-export default function DevDreamElevenModal({ isOpen, onClose, userId }: DevDreamElevenModalProps) {
+export default function DevDreamElevenModal({ isOpen, onClose, userId, roomId }: DevDreamElevenModalProps) {
   const [team, setTeam] = useState<Team | null>(null)
   const [ownedPlayers, setOwnedPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)

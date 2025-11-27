@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: user.id,
         playerId: playerId,
-        revealed: false, // For festival artists
+        revealed: player.type === 'FESTIVAL' ? false : true, // Festival artists hidden, footballers and actors visible immediately
       },
       include: {
         player: true,
