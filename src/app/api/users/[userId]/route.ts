@@ -14,8 +14,12 @@ export async function DELETE(
   }
 
   try {
-    await requireAdmin();
+    const adminInfo = await requireAdmin();
+    console.log('✅ Admin check passed for user deletion:', adminInfo);
   } catch (error) {
+    console.error('❌ Admin check failed for user deletion:', error);
+    console.error('❌ ADMIN_EMAIL_ALLOWLIST:', process.env.ADMIN_EMAIL_ALLOWLIST);
+    
     const message =
       error instanceof Error ? error.message || "Unauthorized" : "Unauthorized";
     const status =
@@ -25,7 +29,10 @@ export async function DELETE(
           ? 401
           : 401;
 
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ 
+      error: message,
+      details: 'Admin access required. Check ADMIN_EMAIL_ALLOWLIST in Railway.'
+    }, { status });
   }
 
   try {
