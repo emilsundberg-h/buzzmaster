@@ -16,11 +16,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Get question usage to find competition and trophy
-    // Find the ACTIVE usage to ensure we get the current one, not an old one
     const usage = await db.questionUsage.findFirst({
       where: {
         questionId,
-        status: "ACTIVE", // Only get the active usage
+        status: "ACTIVE",
       },
       include: {
         competition: {
@@ -31,7 +30,7 @@ export async function POST(request: NextRequest) {
         trophy: true,
       },
       orderBy: {
-        sentAt: "desc", // Get the most recent if there are multiple active
+        sentAt: "desc",
       },
     });
 
@@ -47,7 +46,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the question with answers ordered asc
     const question = await db.question.findUnique({
       where: { id: questionId },
       include: {
@@ -66,20 +64,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For multiple choice, evaluate automatically based on isCorrect
     if (question.type === "MULTIPLE_CHOICE") {
-      // Only consider answers from the current competition usage
       const answersForCompetition = question.answers.filter(
         (a) => a.competitionId === usage.competitionId
       );
       const correctAnswers = answersForCompetition.filter((a) => a.isCorrect);
 
-      // Apply scoring based on scoringType
-      let updatedAnswers = [];
+      let updatedAnswers: any[] = [];
 
       switch (question.scoringType) {
-        case "FIRST_ONLY":
-          // Only first correct answer gets points
+        case "FIRST_ONLY": {
           if (correctAnswers.length > 0) {
             const firstCorrect = correctAnswers[0];
             const updated = await db.answer.update({
@@ -92,7 +86,6 @@ export async function POST(request: NextRequest) {
             });
             updatedAnswers.push(updated);
 
-            // Award points to user (create if doesn't exist)
             let user = await db.user.findUnique({
               where: { clerkId: firstCorrect.userId },
             });
@@ -119,22 +112,20 @@ export async function POST(request: NextRequest) {
               });
             }
 
-            // Award trophy if this question has one (only to earliest correct answer)
             const actualTrophyId = usage.trophyId || usage.playerTrophyId;
             if (actualTrophyId && user) {
-              // Check if this is a player trophy (format: player_<playerId>)
-              if (actualTrophyId.startsWith('player_')) {
-                // Handle player trophy - add directly to user's collection
+              if (actualTrophyId.startsWith("player_")) {
                 await addTrophyPlayerToDreamEleven(user.id, actualTrophyId);
-                
-                // Get player info for broadcast
-                const playerId = actualTrophyId.replace('player_', '');
+
+                const playerId = actualTrophyId.replace("player_", "");
                 const player = await db.player.findUnique({
-                  where: { id: playerId }
+                  where: { id: playerId },
                 });
 
                 if (player && usage.competition.room) {
-                  console.log(`Broadcasting player:won for user ${user.username}`);
+                  console.log(
+                    `Broadcasting player:won for user ${user.username}`
+                  );
                   broadcastToRoom(usage.competition.room.id, {
                     type: "trophy:won",
                     data: {
@@ -150,8 +141,6 @@ export async function POST(request: NextRequest) {
                   });
                 }
               } else {
-                // Handle traditional trophy
-                // Avoid duplicate awards for repeated evaluations
                 const existingWin = await db.trophyWin.findFirst({
                   where: {
                     source: "question",
@@ -173,10 +162,8 @@ export async function POST(request: NextRequest) {
                     },
                   });
 
-                  // Check if this traditional trophy is also a player (legacy support)
                   await addTrophyPlayerToDreamEleven(user.id, actualTrophyId);
 
-                  // Broadcast trophy win
                   if (usage.competition.room) {
                     console.log(
                       `Broadcasting trophy:won to room ${usage.competition.room.id} for user ${user.username}`
@@ -196,13 +183,14 @@ export async function POST(request: NextRequest) {
             }
           }
           break;
+        }
 
-        case "DESCENDING":
-          // Descending points: 1st gets most, last gets least
+        case "DESCENDING": {
           const participantCount = correctAnswers.length;
+
           for (let i = 0; i < correctAnswers.length; i++) {
             const answer = correctAnswers[i];
-            const points = Math.max(1, participantCount - i); // Ensure at least 1 point
+            const points = Math.max(1, participantCount - i);
 
             const updated = await db.answer.update({
               where: { id: answer.id },
@@ -214,7 +202,6 @@ export async function POST(request: NextRequest) {
             });
             updatedAnswers.push(updated);
 
-            // Award points to user (create if doesn't exist)
             let user = await db.user.findUnique({
               where: { clerkId: answer.userId },
             });
@@ -241,22 +228,20 @@ export async function POST(request: NextRequest) {
               });
             }
 
-            // Award trophy to earliest correct answer if trophy exists
             const actualTrophyId2 = usage.trophyId || usage.playerTrophyId;
             if (i === 0 && actualTrophyId2 && user) {
-              // Check if this is a player trophy
-              if (actualTrophyId2.startsWith('player_')) {
-                // Handle player trophy - add directly to user's collection
+              if (actualTrophyId2.startsWith("player_")) {
                 await addTrophyPlayerToDreamEleven(user.id, actualTrophyId2);
-                
-                // Get player info for broadcast
-                const playerId = actualTrophyId2.replace('player_', '');
+
+                const playerId = actualTrophyId2.replace("player_", "");
                 const player = await db.player.findUnique({
-                  where: { id: playerId }
+                  where: { id: playerId },
                 });
 
                 if (player && usage.competition.room) {
-                  console.log(`Broadcasting player:won for user ${user.username}`);
+                  console.log(
+                    `Broadcasting player:won for user ${user.username}`
+                  );
                   broadcastToRoom(usage.competition.room.id, {
                     type: "trophy:won",
                     data: {
@@ -272,7 +257,6 @@ export async function POST(request: NextRequest) {
                   });
                 }
               } else {
-                // Handle traditional trophy
                 const existingWin = await db.trophyWin.findFirst({
                   where: {
                     source: "question",
@@ -294,7 +278,6 @@ export async function POST(request: NextRequest) {
                     },
                   });
 
-                  // Broadcast trophy win
                   if (usage.competition.room) {
                     console.log(
                       `Broadcasting trophy:won to room ${usage.competition.room.id} for user ${user.username}`
@@ -314,10 +297,11 @@ export async function POST(request: NextRequest) {
             }
           }
           break;
+        }
 
-        case "ALL_EQUAL":
-          // All correct answers get the same points
+        case "ALL_EQUAL": {
           let isFirstCorrect = true;
+
           for (const answer of correctAnswers) {
             const updated = await db.answer.update({
               where: { id: answer.id },
@@ -329,7 +313,6 @@ export async function POST(request: NextRequest) {
             });
             updatedAnswers.push(updated);
 
-            // Award points to user (create if doesn't exist)
             let user = await db.user.findUnique({
               where: { clerkId: answer.userId },
             });
@@ -356,18 +339,14 @@ export async function POST(request: NextRequest) {
               });
             }
 
-            // Award trophy to earliest correct answer if trophy exists (even in ALL_EQUAL mode)
             const actualTrophyId3 = usage.trophyId || usage.playerTrophyId;
             if (isFirstCorrect && actualTrophyId3 && user) {
-              // Check if this is a player trophy
-              if (actualTrophyId3.startsWith('player_')) {
-                // Handle player trophy - add directly to user's collection
+              if (actualTrophyId3.startsWith("player_")) {
                 await addTrophyPlayerToDreamEleven(user.id, actualTrophyId3);
-                
-                // Get player info for broadcast
-                const playerId = actualTrophyId3.replace('player_', '');
+
+                const playerId = actualTrophyId3.replace("player_", "");
                 const player = await db.player.findUnique({
-                  where: { id: playerId }
+                  where: { id: playerId },
                 });
 
                 console.log(
@@ -375,7 +354,9 @@ export async function POST(request: NextRequest) {
                 );
 
                 if (player && usage.competition.room) {
-                  console.log(`Broadcasting player:won for user ${user.username}`);
+                  console.log(
+                    `Broadcasting player:won for user ${user.username}`
+                  );
                   broadcastToRoom(usage.competition.room.id, {
                     type: "trophy:won",
                     data: {
@@ -391,7 +372,6 @@ export async function POST(request: NextRequest) {
                   });
                 }
               } else {
-                // Handle traditional trophy
                 const existingWin = await db.trophyWin.findFirst({
                   where: {
                     source: "question",
@@ -417,7 +397,6 @@ export async function POST(request: NextRequest) {
                     `Trophy awarded to user ${user.username} (${user.id})`
                   );
 
-                  // Broadcast trophy win
                   if (usage.competition.room) {
                     console.log(
                       `Broadcasting trophy:won event to room ${usage.competition.room.id}`
@@ -428,18 +407,20 @@ export async function POST(request: NextRequest) {
                         userId: user.id,
                         username: user.username,
                         trophy: trophyWin.trophy,
-                      roomId: usage.competition.room.id,
-                    },
-                  });
+                        roomId: usage.competition.room.id,
+                      },
+                    });
+                  }
                 }
               }
             }
-            isFirstCorrect = false; // Only first person gets trophy
+
+            isFirstCorrect = false;
           }
           break;
+        }
       }
 
-      // Mark all incorrect answers as reviewed with 0 points
       const incorrectAnswers = answersForCompetition.filter(
         (a) => !a.isCorrect
       );
@@ -455,7 +436,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Mark question usage as completed
     await db.questionUsage.update({
       where: {
         questionId_competitionId: {
@@ -469,7 +449,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Broadcast question completed and score updates
     if (usage.competition.room) {
       broadcastToRoom(usage.competition.room.id, {
         type: "question:completed",
@@ -478,7 +457,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Also broadcast score updates
       broadcastToRoom(usage.competition.room.id, {
         type: "scores:updated",
         data: {},
