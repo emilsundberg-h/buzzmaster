@@ -2,6 +2,9 @@
   "name": "buzzmaster",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "concurrently \"npm run websocket\" \"npm run next\"",
     "next": "next dev",
