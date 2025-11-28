@@ -5,7 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 // PATCH /api/simulator/submissions/[id] - Update submission status (admin only)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -23,8 +23,9 @@ export async function PATCH(
     // TODO: Add admin check here
     // For now, any authenticated user can update
 
+    const { id } = await params;
     const submission = await db.simulatorSubmission.update({
-      where: { id: params.id },
+      where: { id },
       data: { status },
       include: {
         user: {
@@ -53,7 +54,7 @@ export async function PATCH(
 // DELETE /api/simulator/submissions/[id] - Delete own submission
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -69,9 +70,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const { id } = await params;
+
     // Check if submission belongs to user
     const submission = await db.simulatorSubmission.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!submission) {
@@ -90,7 +93,7 @@ export async function DELETE(
     }
 
     await db.simulatorSubmission.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

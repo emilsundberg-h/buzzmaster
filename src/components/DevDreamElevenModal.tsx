@@ -213,7 +213,6 @@ export default function DevDreamElevenModal({ isOpen, onClose, userId, roomId }:
 
   const requirements: Record<string, Record<number, string>> = {
     F442: { 0: 'GK', 1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF', 5: 'MID', 6: 'MID', 7: 'MID', 8: 'MID', 9: 'FWD', 10: 'FWD' },
-    F442_DIAMOND: { 0: 'GK', 1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF', 5: 'MID', 6: 'MID', 7: 'MID', 8: 'MID', 9: 'FWD', 10: 'FWD' },
     F433: { 0: 'GK', 1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF', 5: 'MID', 6: 'MID', 7: 'MID', 8: 'FWD', 9: 'FWD', 10: 'FWD' },
     F343: { 0: 'GK', 1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'MID', 5: 'MID', 6: 'MID', 7: 'MID', 8: 'FWD', 9: 'FWD', 10: 'FWD' },
   }

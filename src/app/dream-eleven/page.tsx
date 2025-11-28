@@ -22,7 +22,7 @@ interface TeamPosition {
 
 interface Team {
   id: string
-  formation: 'F442' | 'F442_DIAMOND' | 'F433' | 'F343'
+  formation: 'F442' | 'F433' | 'F343'
   positions: TeamPosition[]
 }
 
@@ -196,7 +196,6 @@ export default function DreamElevenPage() {
   const getPositionLabel = (position: number): string => {
     const requirements: Record<string, Record<number, string>> = {
       F442: { 0: 'GK', 1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF', 5: 'MID', 6: 'MID', 7: 'MID', 8: 'MID', 9: 'FWD', 10: 'FWD' },
-      F442_DIAMOND: { 0: 'GK', 1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF', 5: 'MID', 6: 'MID', 7: 'MID', 8: 'MID', 9: 'FWD', 10: 'FWD' },
       F433: { 0: 'GK', 1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF', 5: 'MID', 6: 'MID', 7: 'MID', 8: 'FWD', 9: 'FWD', 10: 'FWD' },
       F343: { 0: 'GK', 1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'MID', 5: 'MID', 6: 'MID', 7: 'MID', 8: 'FWD', 9: 'FWD', 10: 'FWD' },
     }
@@ -234,7 +233,6 @@ export default function DreamElevenPage() {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg cursor-pointer"
               >
                 <option value="F442">4-4-2</option>
-                <option value="F442_DIAMOND">4-4-2 Diamond</option>
                 <option value="F433">4-3-3</option>
                 <option value="F343">3-4-3</option>
               </select>
@@ -302,6 +300,7 @@ export default function DreamElevenPage() {
             position={selectedPosition}
             positionLabel={getPositionLabel(selectedPosition)}
             availablePlayers={getAvailablePlayers(selectedPosition)}
+            usedPlayerIds={team?.positions.map(tp => tp.player.id) || []}
             onSwap={handlePlayerSwap}
             onClose={() => setSelectedPosition(null)}
           />

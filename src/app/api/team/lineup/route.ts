@@ -134,14 +134,6 @@ function getFormationRequirements(formation: string): Record<number, string> {
         9: 'FWD', 10: 'FWD', // 2 forwards
       };
     
-    case 'F442_DIAMOND': // 4-4-2 Diamond
-      return {
-        ...baseRequirements,
-        1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF', // 4 defenders
-        5: 'MID', 6: 'MID', 7: 'MID', 8: 'MID', // 4 midfielders (diamond)
-        9: 'FWD', 10: 'FWD', // 2 forwards
-      };
-    
     case 'F433': // 4-3-3
       return {
         ...baseRequirements,

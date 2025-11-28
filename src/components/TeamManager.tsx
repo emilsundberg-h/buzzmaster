@@ -20,7 +20,7 @@ interface TeamPosition {
 
 interface Team {
   id: string
-  formation: 'F442' | 'F442_DIAMOND' | 'F433' | 'F343'
+  formation: 'F442' | 'F433' | 'F343'
   positions: TeamPosition[]
 }
 
@@ -32,19 +32,12 @@ interface TeamManagerProps {
 
 const FORMATIONS = [
   { value: 'F442', label: '4-4-2' },
-  { value: 'F442_DIAMOND', label: '4-4-2 Diamond' },
   { value: 'F433', label: '4-3-3' },
   { value: 'F343', label: '3-4-3' },
 ]
 
 const POSITION_REQUIREMENTS: Record<string, Record<number, string>> = {
   F442: {
-    0: 'GK',
-    1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF',
-    5: 'MID', 6: 'MID', 7: 'MID', 8: 'MID',
-    9: 'FWD', 10: 'FWD',
-  },
-  F442_DIAMOND: {
     0: 'GK',
     1: 'DEF', 2: 'DEF', 3: 'DEF', 4: 'DEF',
     5: 'MID', 6: 'MID', 7: 'MID', 8: 'MID',
@@ -65,7 +58,7 @@ const POSITION_REQUIREMENTS: Record<string, Record<number, string>> = {
 }
 
 export default function TeamManager({ initialTeam, ownedPlayers, onSave }: TeamManagerProps) {
-  const [formation, setFormation] = useState<'F442' | 'F442_DIAMOND' | 'F433' | 'F343'>(
+  const [formation, setFormation] = useState<'F442' | 'F433' | 'F343'>(
     initialTeam?.formation || 'F442'
   )
   const [lineup, setLineup] = useState<Map<number, Player>>(new Map())
@@ -105,7 +98,7 @@ export default function TeamManager({ initialTeam, ownedPlayers, onSave }: TeamM
     setSelectedPosition(null)
   }
 
-  const handlePositionClick = (position: number, currentPlayer: Player) => {
+  const handlePositionClick = (position: number) => {
     setSelectedPosition(position)
   }
 

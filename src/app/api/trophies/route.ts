@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 // POST - Create/seed trophies from the images in /public/trophys/
 export async function POST(request: Request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
