@@ -6,11 +6,13 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "concurrently \"npm run websocket\" \"npm run next\"",
+    "dev": "node server.js",
+    "dev:separate": "concurrently \"npm run websocket\" \"npm run next\"",
     "next": "next dev",
     "websocket": "node websocket-server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
+    "start:next": "next start",
     "lint": "eslint",
     "db:seed": "cd prisma && npx prisma generate && DATABASE_URL=\"file:./dev.db\" npx tsx seed-players.ts",
     "db:seed-trophies": "cd prisma && DATABASE_URL=\"file:./dev.db\" npx tsx seed-trophies.ts",

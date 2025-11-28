@@ -17,6 +17,7 @@ import ChatMessenger from '@/components/ChatMessenger'
 import SimulatorSection from '@/components/SimulatorSection'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme, Theme } from '@/contexts/ThemeContext'
+import { getWebSocketUrl } from '@/lib/websocket-url'
 
 interface User {
   id: string
@@ -141,7 +142,7 @@ export default function DevAdminPage() {
   const { theme } = useTheme()
   
   // WebSocket connection
-  const { isConnected, lastMessage, sendMessage } = useWebSocket('ws://localhost:3001/ws')
+  const { isConnected, lastMessage, sendMessage } = useWebSocket(getWebSocketUrl())
   
   // Handle theme change and broadcast to all users
   const handleThemeChange = useCallback((newTheme: Theme) => {

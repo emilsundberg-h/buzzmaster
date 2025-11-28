@@ -20,6 +20,7 @@ import MyArtistsView from '@/components/MyArtistsView'
 import MyActorsView from '@/components/MyActorsView'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useTheme } from '@/contexts/ThemeContext'
+import { getWebSocketUrl } from '@/lib/websocket-url'
 
 interface UserProfile {
   id: string
@@ -147,7 +148,7 @@ export default function DevUserPage() {
   }, [userId])
 
   // WebSocket connection
-  const { isConnected, lastMessage, sendMessage } = useWebSocket('ws://localhost:3001/ws')
+  const { isConnected, lastMessage, sendMessage } = useWebSocket(getWebSocketUrl())
   
   const updateRoundFromMessage = useCallback((messageData: RoundStatus | { round?: RoundStatus } | undefined) => {
     console.log('updateRoundFromMessage: Received data:', messageData)

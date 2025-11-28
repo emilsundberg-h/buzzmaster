@@ -92,6 +92,11 @@ export function useWebSocket(url: string) {
   };
 
   useEffect(() => {
+    // Skip connection if URL is empty (during SSR)
+    if (!url) {
+      return;
+    }
+    
     connect();
 
     return () => {
