@@ -43,6 +43,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip non-GET requests (POST, PUT, DELETE, etc.)
+  if (event.request.method !== 'GET') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   // Skip API requests - always fetch fresh
   if (event.request.url.includes('/api/')) {
     event.respondWith(fetch(event.request));

@@ -100,22 +100,31 @@ export async function POST(req: NextRequest) {
 // GET /api/simulator/submissions - Get all submissions (admin) or user's submissions
 export async function GET(req: NextRequest) {
   try {
+    console.log('🎮 GET /api/simulator/submissions called');
+    
     const { userId } = await auth();
+    console.log('🎮 Clerk userId:', userId);
+    
     if (!userId) {
+      console.error('🎮 No userId - unauthorized');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
     const userOnly = searchParams.get('userOnly') === 'true';
+    console.log('🎮 Query params - status:', status, 'userOnly:', userOnly);
 
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
     if (!user) {
+      console.error('🎮 User not found in database for clerkId:', userId);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    
+    console.log('🎮 User found:', user.username);
 
     const whereClause: any = {};
 
@@ -126,6 +135,8 @@ export async function GET(req: NextRequest) {
     if (status) {
       whereClause.status = status;
     }
+
+    console.log('🎮 Querying with whereClause:', JSON.stringify(whereClause));
 
     const submissions = await db.simulatorSubmission.findMany({
       where: whereClause,
@@ -150,9 +161,10 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    console.log('🎮 Found', submissions.length, 'submissions');
     return NextResponse.json({ submissions });
   } catch (error) {
-    console.error('Error fetching simulator submissions:', error);
+    console.error('🎮 Error fetching simulator submissions:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
