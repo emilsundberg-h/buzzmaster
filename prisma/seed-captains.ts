@@ -68,7 +68,7 @@ async function main() {
       key: c.key,
       name: data.correctName,
       position: position,
-      filename: c.filename.replace('.webp', ''),
+      filename: c.filename, // Keep .webp extension
       value: data.value
     }
   }).filter(c => c !== null) as Array<{ key: string; name: string; position: PlayerPosition; filename: string; value: number }>
