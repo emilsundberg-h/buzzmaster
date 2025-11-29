@@ -5,6 +5,7 @@ export class SoundEngine {
   crowdGainNode: GainNode | null;
   baseVolume: number;
   enabled: boolean;
+  crowdNoiseEnabled: boolean;
   voicesLoaded: boolean;
   isIOS: boolean;
   speechInitialized: boolean;
@@ -15,6 +16,7 @@ export class SoundEngine {
     this.crowdGainNode = null;
     this.baseVolume = 0.3;
     this.enabled = false;
+    this.crowdNoiseEnabled = false;
     this.voicesLoaded = false;
     this.speechInitialized = false;
     
@@ -41,12 +43,13 @@ export class SoundEngine {
   }
 
   // Initiera Web Audio API
-  async initialize() {
+  async initialize(enableCrowdNoise: boolean = true) {
     if (typeof window === 'undefined') return;
     
     try {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       console.log('SoundEngine: AudioContext created, state:', this.audioContext.state);
+      console.log('SoundEngine: Crowd noise enabled:', enableCrowdNoise);
       
       // iOS: AudioContext startar i "suspended" state och måste resumeas
       if (this.audioContext.state === 'suspended') {
@@ -59,10 +62,15 @@ export class SoundEngine {
       this.crowdGainNode.connect(this.audioContext.destination);
       this.crowdGainNode.gain.value = this.baseVolume;
       this.enabled = true;
+      this.crowdNoiseEnabled = enableCrowdNoise;
       
-      // Starta bakgrundsljud
-      this.startCrowdNoise();
-      console.log('SoundEngine: Crowd noise started');
+      // Starta bakgrundsljud endast om aktiverat
+      if (enableCrowdNoise) {
+        this.startCrowdNoise();
+        console.log('SoundEngine: Crowd noise started');
+      } else {
+        console.log('SoundEngine: Crowd noise disabled by user');
+      }
       
       // iOS-specifik initialisering för speech
       if (this.isIOS && 'speechSynthesis' in window) {
@@ -108,7 +116,7 @@ export class SoundEngine {
 
   // Öka publikljud (vid mål eller spännande händelser)
   increaseCrowdNoise(duration: number = 3000) {
-    if (!this.crowdGainNode || !this.audioContext) return;
+    if (!this.crowdGainNode || !this.audioContext || !this.crowdNoiseEnabled) return;
 
     const currentTime = this.audioContext.currentTime;
     this.crowdGainNode.gain.cancelScheduledValues(currentTime);

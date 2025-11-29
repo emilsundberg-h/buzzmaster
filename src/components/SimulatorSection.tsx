@@ -35,6 +35,7 @@ export default function SimulatorSection() {
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [score, setScore] = useState({ team1: 0, team2: 0 });
   const [events, setEvents] = useState<MatchEvent[]>([]);
+  const [enableCrowdNoise, setEnableCrowdNoise] = useState(true); // Enable by default
   const soundEngineRef = useRef<SoundEngine | null>(null);
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function SimulatorSection() {
     setMatchResult(null);
 
     try {
-      await soundEngineRef.current?.initialize();
+      await soundEngineRef.current?.initialize(enableCrowdNoise);
 
       const simulator = new MatchSimulator(team1, team2);
       const matchData = simulator.simulateFullMatch();
@@ -458,6 +459,21 @@ export default function SimulatorSection() {
                 );
               })()}
             </div>
+          </div>
+
+          {/* Audio Settings */}
+          <div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: 'var(--muted)' }}>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableCrowdNoise}
+                onChange={(e) => setEnableCrowdNoise(e.target.checked)}
+                className="w-5 h-5 cursor-pointer"
+              />
+              <span className="text-sm font-medium">
+                🔊 Enable background crowd noise (iOS users: tap this for audio to work!)
+              </span>
+            </label>
           </div>
 
           {/* Buttons */}
