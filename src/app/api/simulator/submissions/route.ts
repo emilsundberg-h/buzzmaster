@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@clerk/nextjs/server';
 
+// Force Next.js to treat this as a dynamic route
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // POST /api/simulator/submissions - Submit Dream Eleven to simulator
 export async function POST(req: NextRequest) {
   try {
