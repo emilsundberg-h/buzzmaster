@@ -46,6 +46,15 @@ export class SoundEngine {
     
     try {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      console.log('SoundEngine: AudioContext created, state:', this.audioContext.state);
+      
+      // iOS: AudioContext startar i "suspended" state och måste resumeas
+      if (this.audioContext.state === 'suspended') {
+        console.log('SoundEngine: AudioContext is suspended, resuming...');
+        await this.audioContext.resume();
+        console.log('SoundEngine: AudioContext state after resume:', this.audioContext.state);
+      }
+      
       this.crowdGainNode = this.audioContext.createGain();
       this.crowdGainNode.connect(this.audioContext.destination);
       this.crowdGainNode.gain.value = this.baseVolume;
@@ -53,6 +62,7 @@ export class SoundEngine {
       
       // Starta bakgrundsljud
       this.startCrowdNoise();
+      console.log('SoundEngine: Crowd noise started');
       
       // iOS-specifik initialisering för speech
       if (this.isIOS && 'speechSynthesis' in window) {
@@ -193,6 +203,17 @@ export class SoundEngine {
     if (!('speechSynthesis' in window)) {
       console.error('SoundEngine: speechSynthesis not supported');
       return;
+    }
+    
+    // iOS: Resume AudioContext om den är suspended
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      console.log('SoundEngine: Resuming suspended AudioContext for iOS');
+      try {
+        await this.audioContext.resume();
+        console.log('SoundEngine: AudioContext resumed, state:', this.audioContext.state);
+      } catch (error) {
+        console.error('SoundEngine: Failed to resume AudioContext:', error);
+      }
     }
     
     // Vänta på att röster är laddade
