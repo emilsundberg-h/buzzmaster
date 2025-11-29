@@ -10,7 +10,14 @@ export default function HomePage() {
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    if (!isLoaded || !user) return
+    if (!isLoaded) return
+
+    // If not logged in, redirect to sign-in
+    if (!user) {
+      console.log('User not logged in, redirecting to sign-in')
+      router.push('/sign-in')
+      return
+    }
 
     // Check admin status via server-side API
     const checkAdminStatus = async () => {
