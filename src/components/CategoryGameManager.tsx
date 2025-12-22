@@ -44,6 +44,7 @@ export default function CategoryGameManager({
   
   const [currentGame, setCurrentGame] = useState<CategoryGame | null>(null)
   const [timeRemaining, setTimeRemaining] = useState(0)
+  const [isEliminatingPlayer, setIsEliminatingPlayer] = useState(false)
 
   // Fetch current game status
   const fetchGameStatus = async () => {
@@ -91,13 +92,15 @@ export default function CategoryGameManager({
       setTimeRemaining(remaining)
 
       // Auto-eliminate when time runs out (only if game is still active)
-      if (remaining === 0 && currentGame.status === 'ACTIVE') {
+      // Use flag to prevent multiple rapid calls while waiting for server response
+      if (remaining === 0 && currentGame.status === 'ACTIVE' && !isEliminatingPlayer) {
+        setIsEliminatingPlayer(true)
         handleNextPlayer()
       }
     }, 100)
 
     return () => clearInterval(interval)
-  }, [currentGame])
+  }, [currentGame, isEliminatingPlayer])
 
   // Listen for WebSocket updates
   useEffect(() => {
@@ -106,11 +109,13 @@ export default function CategoryGameManager({
     if (onWebSocketMessage.type === 'category-game:completed') {
       // Game completed - clear immediately, trophy animation will show
       setCurrentGame(null)
+      setIsEliminatingPlayer(false)
     } else if (onWebSocketMessage.type === 'category-game:started' ||
         onWebSocketMessage.type === 'category-game:next-player' ||
         onWebSocketMessage.type === 'category-game:resumed' ||
         onWebSocketMessage.type === 'category-game:paused') {
       // Fetch game status (API will return null if completed)
+      setIsEliminatingPlayer(false)
       fetchGameStatus()
     }
   }, [onWebSocketMessage])
