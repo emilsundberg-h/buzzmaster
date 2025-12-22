@@ -80,13 +80,13 @@ ENV PORT=3000
 # Expose the port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+# Health check (increased start-period to allow for db push + Next.js startup)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/health || exit 1
 
 # Copy prisma schema for database sync
 COPY --from=builder /app/prisma ./prisma
 
-# Start script: sync database schema then start server
-# Using db push for initial setup (creates tables if they don't exist)
-CMD npx prisma db push --skip-generate && node server.js
+# Start script: run db push with timeout, then start server
+# If db push fails or times out, server still starts (schema should already exist from previous deploys)
+CMD timeout 30 npx prisma db push --skip-generate || echo "DB push skipped or timed out, continuing..." && node server.js
