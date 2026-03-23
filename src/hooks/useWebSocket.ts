@@ -46,7 +46,7 @@ export function useWebSocket(_url: string) {
     socket: null,
     isConnected,
     lastMessage,
-    sendMessage: () => {},
+    sendMessage: (_msg?: unknown) => {},
     connect: () => {},
     disconnect: () => {},
   };
