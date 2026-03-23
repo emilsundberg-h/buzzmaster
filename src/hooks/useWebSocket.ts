@@ -1,115 +1,53 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import Pusher from "pusher-js";
 
 interface WebSocketMessage {
   type: string;
-  data?: any;
+  data?: unknown;
   clientId?: string;
   message?: string;
 }
 
-export function useWebSocket(url: string) {
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+// url param kept for backwards compatibility with call sites
+export function useWebSocket(_url: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
-  const clientIdRef = useRef<string>("");
-
-  const connect = () => {
-    try {
-      console.log("WebSocket: Connecting to", url);
-      const ws = new WebSocket(url);
-
-      ws.onopen = () => {
-        console.log("WebSocket: Connected");
-        setIsConnected(true);
-        reconnectAttempts.current = 0;
-
-        // Generate client ID
-        clientIdRef.current = Math.random().toString(36).substring(7);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          console.log("WebSocket: Received message:", message);
-          setLastMessage(message);
-        } catch (error) {
-          console.error("WebSocket: Error parsing message:", error);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log("WebSocket: Disconnected");
-        setIsConnected(false);
-        setSocket(null);
-
-        // Attempt to reconnect
-        if (reconnectAttempts.current < maxReconnectAttempts) {
-          reconnectAttempts.current++;
-          const delay = Math.min(
-            1000 * Math.pow(2, reconnectAttempts.current),
-            10000
-          );
-          console.log(
-            `WebSocket: Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`
-          );
-
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, delay);
-        } else {
-          console.error("WebSocket: Max reconnection attempts reached");
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error("WebSocket: Error:", error);
-      };
-
-      setSocket(ws);
-    } catch (error) {
-      console.error("WebSocket: Connection error:", error);
-    }
-  };
-
-  const disconnect = () => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
-    if (socket) {
-      socket.close();
-    }
-  };
-
-  const sendMessage = (message: any) => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(message));
-    } else {
-      console.warn("WebSocket: Cannot send message, not connected");
-    }
-  };
 
   useEffect(() => {
-    // Skip connection if URL is empty (during SSR)
-    if (!url) {
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+
+    if (!pusherKey || !pusherCluster) {
+      console.warn("Pusher: Missing NEXT_PUBLIC_PUSHER_KEY or NEXT_PUBLIC_PUSHER_CLUSTER");
       return;
     }
-    
-    connect();
+
+    const pusher = new Pusher(pusherKey, { cluster: pusherCluster });
+    const channel = pusher.subscribe("buzzmaster");
+
+    pusher.connection.bind("connected", () => setIsConnected(true));
+    pusher.connection.bind("disconnected", () => setIsConnected(false));
+    pusher.connection.bind("error", (err: unknown) =>
+      console.error("Pusher connection error:", err)
+    );
+
+    channel.bind("game-event", (msg: WebSocketMessage) => {
+      setLastMessage(msg);
+    });
 
     return () => {
-      disconnect();
+      channel.unbind_all();
+      pusher.unsubscribe("buzzmaster");
+      pusher.disconnect();
     };
-  }, [url]);
+  }, []);
 
   return {
-    socket,
+    socket: null,
     isConnected,
     lastMessage,
-    sendMessage,
-    connect,
-    disconnect,
+    sendMessage: () => {},
+    connect: () => {},
+    disconnect: () => {},
   };
 }
