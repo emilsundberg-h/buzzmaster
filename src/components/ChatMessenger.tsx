@@ -70,11 +70,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
   // Fetch participants
   const fetchParticipants = async () => {
     try {
-      const response = await fetch(`/api/chat/participants?roomId=${roomId}`, {
-        headers: {
-          'x-dev-user-id': currentUserId
-        }
-      })
+      const response = await fetch(`/api/chat/participants?roomId=${roomId}`)
       const data = await response.json()
       setParticipants(data.participants || [])
       setUnreadGroupCount(data.unreadGroupCount || 0)
@@ -93,11 +89,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
         url += `&otherUserId=${activeChat}`
       }
 
-      const response = await fetch(url, {
-        headers: {
-          'x-dev-user-id': currentUserId
-        }
-      })
+      const response = await fetch(url)
       const data = await response.json()
       setMessages(data.messages || [])
       
@@ -117,7 +109,6 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-dev-user-id': currentUserId
         },
         body: JSON.stringify({
           roomId,
@@ -151,7 +142,6 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-dev-user-id': currentUserId
         },
         body: JSON.stringify({
           roomId,
@@ -174,7 +164,6 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-dev-user-id': currentUserId
         },
         body: JSON.stringify({
           roomId,
@@ -262,10 +251,7 @@ export default function ChatMessenger({ roomId, currentUserId, lastWebSocketMess
         // Mark as seen
         fetch('/api/chat/poke', {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-dev-user-id': currentUserId
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pokeId: poke.id })
         })
       } else {

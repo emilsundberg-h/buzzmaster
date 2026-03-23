@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 import { broadcastToRoom } from "@/lib/websocket";
 
-// GET - Fetch messages for a room or between two users
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-dev-user-id");
-    if (!userId) {
-      return NextResponse.json({ error: "User ID required" }, { status: 401 });
-    }
-
+    const userId = await requireUser();
     const { searchParams } = new URL(request.url);
     const roomId = searchParams.get("roomId");
     const otherUserId = searchParams.get("otherUserId");
@@ -18,22 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Room ID required" }, { status: 400 });
     }
 
-    // Get current user's database ID
-    let currentUser = await db.user.findUnique({
-      where: { clerkId: userId },
-    });
-
-    // Create admin user if it doesn't exist
-    if (!currentUser && userId === "admin") {
-      currentUser = await db.user.create({
-        data: {
-          clerkId: "admin",
-          username: "Admin",
-          avatarKey: "01",
-        },
-      });
-    }
-
+    const currentUser = await db.user.findUnique({ where: { clerkId: userId } });
     if (!currentUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -41,16 +22,9 @@ export async function GET(request: NextRequest) {
     let messages;
 
     if (otherUserId) {
-      // Convert otherUserId (clerkId) to database ID
-      const otherUser = await db.user.findUnique({
-        where: { clerkId: otherUserId },
-      });
+      const otherUser = await db.user.findUnique({ where: { clerkId: otherUserId } });
+      if (!otherUser) return NextResponse.json({ messages: [] });
 
-      if (!otherUser) {
-        return NextResponse.json({ messages: [] });
-      }
-
-      // Get direct messages between two users (using database IDs)
       messages = await db.message.findMany({
         where: {
           roomId,
@@ -60,103 +34,50 @@ export async function GET(request: NextRequest) {
           ],
         },
         include: {
-          sender: {
-            select: {
-              id: true,
-              clerkId: true,
-              username: true,
-              avatarKey: true,
-            },
-          },
+          sender: { select: { id: true, clerkId: true, username: true, avatarKey: true } },
         },
-        orderBy: {
-          createdAt: "asc",
-        },
-        take: 100, // Limit to last 100 messages
+        orderBy: { createdAt: "asc" },
+        take: 100,
       });
     } else {
-      // Get group messages (where receiverId is null)
       messages = await db.message.findMany({
-        where: {
-          roomId,
-          receiverId: null,
-        },
+        where: { roomId, receiverId: null },
         include: {
-          sender: {
-            select: {
-              id: true,
-              clerkId: true,
-              username: true,
-              avatarKey: true,
-            },
-          },
+          sender: { select: { id: true, clerkId: true, username: true, avatarKey: true } },
         },
-        orderBy: {
-          createdAt: "asc",
-        },
+        orderBy: { createdAt: "asc" },
         take: 100,
       });
     }
 
     return NextResponse.json({ messages });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Fetch messages error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch messages" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
   }
 }
 
-// POST - Send a message
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-dev-user-id");
-    if (!userId) {
-      return NextResponse.json({ error: "User ID required" }, { status: 401 });
-    }
-
+    const userId = await requireUser();
     const body = await request.json();
     const { roomId, receiverId, content } = body;
 
     if (!roomId || !content) {
-      return NextResponse.json(
-        { error: "Room ID and content are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Room ID and content are required" }, { status: 400 });
     }
 
-    // Get sender info (or create admin user if needed)
-    let sender = await db.user.findUnique({
+    const sender = await db.user.findUnique({
       where: { clerkId: userId },
-      select: {
-        id: true,
-        username: true,
-        avatarKey: true,
-      },
+      select: { id: true, username: true, avatarKey: true },
     });
-
-    // Create admin user if it doesn't exist
-    if (!sender && userId === "admin") {
-      sender = await db.user.create({
-        data: {
-          clerkId: "admin",
-          username: "Admin",
-          avatarKey: "01", // Default avatar for admin
-        },
-        select: {
-          id: true,
-          username: true,
-          avatarKey: true,
-        },
-      });
-    }
-
     if (!sender) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get receiver database ID if this is a DM
     let receiverDbId = null;
     let receiverClerkId = null;
     if (receiverId) {
@@ -164,52 +85,34 @@ export async function POST(request: NextRequest) {
         where: { clerkId: receiverId },
         select: { id: true, clerkId: true },
       });
-
       if (!receiver) {
-        return NextResponse.json(
-          { error: "Receiver not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Receiver not found" }, { status: 404 });
       }
-
       receiverDbId = receiver.id;
       receiverClerkId = receiver.clerkId;
     }
 
-    // Create message
     const message = await db.message.create({
-      data: {
-        roomId,
-        senderId: sender.id,
-        receiverId: receiverDbId,
-        content,
-      },
+      data: { roomId, senderId: sender.id, receiverId: receiverDbId, content },
       include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            avatarKey: true,
-          },
-        },
+        sender: { select: { id: true, username: true, avatarKey: true } },
       },
     });
 
-    // Broadcast message via WebSocket with clerkIds
     broadcastToRoom(roomId, {
       type: "chat:message",
       data: {
         message: {
           id: message.id,
           roomId: message.roomId,
-          senderId: userId, // Use clerkId instead of database ID
-          receiverId: receiverClerkId, // Use clerkId instead of database ID
+          senderId: userId,
+          receiverId: receiverClerkId,
           content: message.content,
           createdAt: message.createdAt,
           read: message.read,
           sender: {
             id: sender.id,
-            clerkId: userId, // Add clerkId for consistency
+            clerkId: userId,
             username: sender.username,
             avatarKey: sender.avatarKey,
           },
@@ -219,22 +122,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Send message error:", error);
-    return NextResponse.json(
-      { error: "Failed to send message" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 }
 
-// PATCH - Mark messages as read
 export async function PATCH(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-dev-user-id");
-    if (!userId) {
-      return NextResponse.json({ error: "User ID required" }, { status: 401 });
-    }
-
+    const userId = await requireUser();
     const body = await request.json();
     const { roomId, otherUserId } = body;
 
@@ -242,85 +140,40 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Room ID required" }, { status: 400 });
     }
 
-    let user = await db.user.findUnique({
-      where: { clerkId: userId },
-    });
-
-    // Create admin user if it doesn't exist
-    if (!user && userId === "admin") {
-      user = await db.user.create({
-        data: {
-          clerkId: "admin",
-          username: "Admin",
-          avatarKey: "01",
-        },
-      });
-    }
-
+    const user = await db.user.findUnique({ where: { clerkId: userId } });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Mark messages as read
     if (otherUserId) {
-      // Convert otherUserId (clerkId) to database ID
-      const otherUser = await db.user.findUnique({
-        where: { clerkId: otherUserId },
-      });
+      const otherUser = await db.user.findUnique({ where: { clerkId: otherUserId } });
+      if (!otherUser) return NextResponse.json({ success: true });
 
-      if (!otherUser) {
-        return NextResponse.json({ success: true }); // No messages to mark if user doesn't exist
-      }
-
-      // Mark direct messages as read
       await db.message.updateMany({
-        where: {
-          roomId,
-          senderId: otherUser.id,
-          receiverId: user.id,
-          read: false,
-        },
-        data: {
-          read: true,
-        },
+        where: { roomId, senderId: otherUser.id, receiverId: user.id, read: false },
+        data: { read: true },
       });
     } else {
-      // Mark group messages as read using MessageRead table
-      // Get all unread group messages
+      // Mark all unread group messages as read — single batch upsert
       const unreadGroupMessages = await db.message.findMany({
-        where: {
-          roomId,
-          receiverId: null, // Group messages
-          NOT: {
-            senderId: user.id, // Not my own messages
-          },
-        },
+        where: { roomId, receiverId: null, NOT: { senderId: user.id } },
+        select: { id: true },
       });
 
-      // Create MessageRead entries for each unread message
-      for (const message of unreadGroupMessages) {
-        await db.messageRead.upsert({
-          where: {
-            messageId_userId: {
-              messageId: message.id,
-              userId: user.id,
-            },
-          },
-          create: {
-            messageId: message.id,
-            userId: user.id,
-          },
-          update: {}, // Already exists, do nothing
+      if (unreadGroupMessages.length > 0) {
+        await db.messageRead.createMany({
+          data: unreadGroupMessages.map((m) => ({ messageId: m.id, userId: user.id })),
+          skipDuplicates: true,
         });
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Mark messages read error:", error);
-    return NextResponse.json(
-      { error: "Failed to mark messages as read" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to mark messages as read" }, { status: 500 });
   }
 }
